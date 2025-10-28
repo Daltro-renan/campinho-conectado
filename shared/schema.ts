@@ -15,6 +15,7 @@ export const users = pgTable("users", {
 
 export const teams = pgTable("teams", {
   id: serial("id").primaryKey(),
+  clubId: integer("club_id").references(() => clubs.id).notNull(),
   name: text("name").notNull(),
   logo: text("logo"),
   founded: date("founded"),
@@ -46,6 +47,7 @@ export const players = pgTable("players", {
 
 export const games = pgTable("games", {
   id: serial("id").primaryKey(),
+  clubId: integer("club_id").references(() => clubs.id).notNull(),
   homeTeamId: integer("home_team_id").references(() => teams.id).notNull(),
   awayTeamId: integer("away_team_id").references(() => teams.id).notNull(),
   homeScore: integer("home_score").default(0),
@@ -58,6 +60,7 @@ export const games = pgTable("games", {
 
 export const news = pgTable("news", {
   id: serial("id").primaryKey(),
+  clubId: integer("club_id").references(() => clubs.id).notNull(),
   title: text("title").notNull(),
   content: text("content").notNull(),
   image: text("image"),
@@ -82,9 +85,9 @@ export const payments = pgTable("payments", {
 
 export const squadTeams = pgTable("squad_teams", {
   id: serial("id").primaryKey(),
+  clubId: integer("club_id").references(() => clubs.id).notNull(),
   name: text("name").notNull(),
   category: text("category").notNull(),
-  associationId: integer("association_id").references(() => teams.id).notNull(),
   coachId: integer("coach_id").references(() => users.id),
   createdBy: integer("created_by").references(() => users.id).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -92,8 +95,8 @@ export const squadTeams = pgTable("squad_teams", {
 
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
+  clubId: integer("club_id").references(() => clubs.id).notNull(),
   authorId: integer("author_id").references(() => users.id).notNull(),
-  associationId: integer("association_id").references(() => teams.id).notNull(),
   channel: text("channel").notNull(),
   content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -128,6 +131,7 @@ export const insertUserSchema = z.object({
 }).strict();
 
 export const insertTeamSchema = z.object({
+  clubId: z.number(),
   name: z.string().min(1),
   logo: z.string().optional(),
   founded: z.string().optional(),
@@ -145,6 +149,7 @@ export const insertPlayerSchema = z.object({
 }).strict();
 
 export const insertGameSchema = z.object({
+  clubId: z.number(),
   homeTeamId: z.number(),
   awayTeamId: z.number(),
   gameDate: z.string(),
@@ -152,6 +157,7 @@ export const insertGameSchema = z.object({
 }).strict();
 
 export const insertNewsSchema = z.object({
+  clubId: z.number(),
   title: z.string().min(1),
   content: z.string().min(1),
   image: z.string().optional(),
@@ -171,16 +177,16 @@ export const insertPaymentSchema = z.object({
 }).strict();
 
 export const insertSquadTeamSchema = z.object({
+  clubId: z.number(),
   name: z.string().min(1),
   category: z.string().min(1),
-  associationId: z.number(),
   coachId: z.number().optional(),
   createdBy: z.number(),
 }).strict();
 
 export const insertMessageSchema = z.object({
+  clubId: z.number(),
   authorId: z.number(),
-  associationId: z.number(),
   channel: z.enum(["diretoria", "tecnicos", "geral"]),
   content: z.string().min(1).max(1000),
 }).strict();
