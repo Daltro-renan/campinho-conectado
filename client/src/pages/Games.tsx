@@ -1,160 +1,134 @@
-import { Calendar, MapPin, Clock } from "lucide-react";
+import { useEffect } from "react";
+import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Calendar, MapPin, Clock } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
+import { useAuth } from "@/lib/auth";
+import type { Game } from "@shared/schema";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const Games = () => {
-  const upcomingGames = [
-    {
-      id: 1,
-      opponent: "Rival FC",
-      date: "22 Abr",
-      time: "15:00",
-      location: "Campo Central",
-      type: "Campeonato",
-    },
-    {
-      id: 2,
-      opponent: "União FC",
-      date: "29 Abr",
-      time: "16:00",
-      location: "Estádio Municipal",
-      type: "Amistoso",
-    },
-    {
-      id: 3,
-      opponent: "Estrela FC",
-      date: "06 Mai",
-      time: "15:30",
-      location: "Campo Central",
-      type: "Campeonato",
-    },
-  ];
+  const [, setLocation] = useLocation();
+  const { user, isLoading } = useAuth();
 
-  const pastGames = [
-    {
-      id: 4,
-      opponent: "Vitória FC",
-      date: "15 Abr",
-      result: "3-1",
-      status: "win",
-    },
-    {
-      id: 5,
-      opponent: "Atlético FC",
-      date: "08 Abr",
-      result: "2-2",
-      status: "draw",
-    },
-    {
-      id: 6,
-      opponent: "Flamengo FC",
-      date: "01 Abr",
-      result: "1-2",
-      status: "loss",
-    },
-  ];
+  const { data: games = [], isLoading: gamesLoading } = useQuery<Game[]>({
+    queryKey: ["/api/games"],
+    enabled: !!user,
+  });
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      setLocation("/auth");
+    }
+  }, [user, isLoading, setLocation]);
+
+  if (isLoading || gamesLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando jogos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
+  const getStatusBadge = (status: string) => {
+    const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+      scheduled: { label: "Agendado", variant: "default" },
+      live: { label: "Ao Vivo", variant: "destructive" },
+      finished: { label: "Finalizado", variant: "secondary" },
+    };
+    
+    const config = statusMap[status] || { label: status, variant: "outline" };
+    return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  const sortedGames = [...games].sort((a, b) => 
+    new Date(b.gameDate).getTime() - new Date(a.gameDate).getTime()
+  );
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-primary to-secondary p-6 text-primary-foreground">
+      <div className="bg-gradient-to-br from-secondary to-black p-6 text-primary-foreground shadow-lg">
         <div className="max-w-lg mx-auto">
-          <h1 className="text-2xl font-bold mb-1">Jogos</h1>
-          <p className="text-primary-foreground/80">Calendário e resultados</p>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Calendar className="w-7 h-7 text-primary" />
+            Calendário de Jogos
+          </h1>
+          <p className="text-gray-300 mt-1">Acompanhe todos os jogos</p>
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto p-4 space-y-6">
-        {/* Próximos Jogos */}
-        <div>
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-primary" />
-            Próximos Jogos
-          </h2>
-          <div className="space-y-3">
-            {upcomingGames.map((game) => (
-              <Card key={game.id} className="border-primary/20">
-                <CardContent className="pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <p className="font-bold text-lg">vs {game.opponent}</p>
-                        <Badge variant="secondary" className="text-xs">
-                          {game.type}
-                        </Badge>
-                      </div>
-                      <div className="space-y-1 text-sm text-muted-foreground">
-                        <p className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
-                          {game.date}
-                        </p>
-                        <p className="flex items-center gap-2">
-                          <Clock className="w-4 h-4" />
-                          {game.time}
-                        </p>
-                        <p className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4" />
-                          {game.location}
-                        </p>
-                      </div>
-                    </div>
+      <div className="max-w-lg mx-auto p-4 space-y-4">
+        {games.length === 0 ? (
+          <Card className="text-center py-12">
+            <CardContent>
+              <Calendar className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
+              <p className="text-lg font-semibold mb-2">Nenhum jogo agendado</p>
+              <p className="text-sm text-muted-foreground">
+                Os próximos jogos aparecerão aqui quando forem agendados
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          sortedGames.map((game) => (
+            <Card 
+              key={game.id} 
+              className="overflow-hidden border-primary/20 hover:border-primary/50 transition-all"
+              data-testid={`card-game-${game.id}`}
+            >
+              <CardHeader className="bg-primary/5 pb-3">
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-lg">Jogo #{game.id}</CardTitle>
+                  {getStatusBadge(game.status)}
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex items-center justify-between bg-background/50 p-4 rounded-lg">
+                  <div className="text-center flex-1">
+                    <p className="text-sm text-muted-foreground mb-1">Casa</p>
+                    <p className="font-bold text-xl">Time {game.homeTeamId}</p>
+                    {game.homeScore !== null && (
+                      <p className="text-3xl font-bold text-primary mt-2">{game.homeScore}</p>
+                    )}
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" className="flex-1">
-                      Confirmar Presença
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      Ver Local
-                    </Button>
+                  
+                  <div className="px-4 text-2xl font-bold text-muted-foreground">VS</div>
+                  
+                  <div className="text-center flex-1">
+                    <p className="text-sm text-muted-foreground mb-1">Visitante</p>
+                    <p className="font-bold text-xl">Time {game.awayTeamId}</p>
+                    {game.awayScore !== null && (
+                      <p className="text-3xl font-bold text-primary mt-2">{game.awayScore}</p>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
+                </div>
 
-        {/* Resultados Recentes */}
-        <div>
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-muted-foreground" />
-            Resultados Recentes
-          </h2>
-          <div className="space-y-2">
-            {pastGames.map((game) => (
-              <Card key={game.id}>
-                <CardContent className="py-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold">vs {game.opponent}</p>
-                      <p className="text-sm text-muted-foreground">{game.date}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xl font-bold">{game.result}</p>
-                      <Badge
-                        variant={
-                          game.status === "win"
-                            ? "default"
-                            : game.status === "draw"
-                            ? "secondary"
-                            : "destructive"
-                        }
-                        className="text-xs"
-                      >
-                        {game.status === "win"
-                          ? "Vitória"
-                          : game.status === "draw"
-                          ? "Empate"
-                          : "Derrota"}
-                      </Badge>
-                    </div>
+                <div className="space-y-2 pt-2 border-t">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="w-4 h-4 text-primary" />
+                    <span className="font-medium">
+                      {format(new Date(game.gameDate), "EEEE, dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+                    </span>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
+                  
+                  {game.location && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <MapPin className="w-4 h-4 text-primary" />
+                      <span>{game.location}</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
       <BottomNav />

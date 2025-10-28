@@ -17,13 +17,15 @@ export default defineConfig(({ mode }) => ({
     host: "0.0.0.0",
     port: 5000,
     strictPort: true,
+
+    // 👇 Adicione esta parte para liberar o domínio do Replit
+    allowedHosts: [
+      ".replit.dev", // permite qualquer subdomínio do Replit
+    ],
   },
   css: {
     postcss: {
-      plugins: [
-        tailwindcss(),
-        autoprefixer(),
-      ],
+      plugins: [tailwindcss(), autoprefixer()],
     },
   },
   plugins: [
@@ -47,21 +49,21 @@ export default defineConfig(({ mode }) => ({
             src: "/icon-192.png",
             sizes: "192x192",
             type: "image/png",
-            purpose: "any maskable"
+            purpose: "any maskable",
           },
           {
             src: "/icon-512.png",
             sizes: "512x512",
             type: "image/png",
-            purpose: "any maskable"
-          }
-        ]
+            purpose: "any maskable",
+          },
+        ],
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
-        runtimeCaching: []
-      }
-    })
+        runtimeCaching: [],
+      },
+    }),
   ].filter(Boolean),
   resolve: {
     alias: {
