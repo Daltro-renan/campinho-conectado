@@ -7,6 +7,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (token: string) => void;
   logout: () => void;
+  refreshUser: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -14,7 +15,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("token"));
 
-  const { data: user, isLoading } = useQuery<PublicUser>({
+  const { data: user, isLoading, refetch } = useQuery<PublicUser>({
     queryKey: ["/api/auth/me"],
     enabled: !!token,
     retry: false,
@@ -30,8 +31,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
   };
 
+  const refreshUser = () => {
+    refetch();
+  };
+
   return (
-    <AuthContext.Provider value={{ user: user || null, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user: user || null, isLoading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

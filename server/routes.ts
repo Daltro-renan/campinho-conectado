@@ -107,8 +107,8 @@ export function registerRoutes(app: Express) {
         ...userData,
         password: hashedPassword,
         // All new users are admin with presidente role by default
-        role: "presidente",
-        globalRole: "admin"
+        role: "presidente" as const,
+        globalRole: "admin" as const
       };
 
       const user = await storage.createUser(userWithHashedPassword);
@@ -163,6 +163,41 @@ export function registerRoutes(app: Express) {
   // Logout endpoint (client-side token removal, no server action needed)
   app.post("/api/auth/logout", authenticateToken, (req, res) => {
     res.json({ message: "Logged out successfully" });
+  });
+
+  // Update user profile endpoint
+  app.put("/api/users/:id", authenticateToken, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      // Users can only update their own profile
+      if (req.user.id !== userId) {
+        return res.status(403).json({ error: "You can only update your own profile" });
+      }
+
+      const allowedFields = ['fullName', 'avatar'];
+      const updateData: any = {};
+      
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field];
+        }
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ error: "No valid fields to update" });
+      }
+
+      const updatedUser = await storage.updateUser(userId, updateData);
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const { password, ...publicUser } = updatedUser;
+      res.json(publicUser);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
   });
 
   app.get("/api/teams", async (req, res) => {

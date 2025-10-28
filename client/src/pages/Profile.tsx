@@ -1,21 +1,47 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, CreditCard, History, Settings, Trophy, User, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { LogOut, CreditCard, History, Settings, Trophy, User, AlertCircle, CheckCircle, Clock, Edit, Info, Image, Sun, Moon } from "lucide-react";
 import { toast } from "sonner";
 import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/lib/auth";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useTheme } from "@/contexts/ThemeContext";
 import { format, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Player, Payment, Game } from "@shared/schema";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+
+const updateNameSchema = z.object({
+  fullName: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
+});
+
+const updateAvatarSchema = z.object({
+  avatar: z.string().url("URL inválida").or(z.literal("")),
+});
+
+type UpdateNameForm = z.infer<typeof updateNameSchema>;
+type UpdateAvatarForm = z.infer<typeof updateAvatarSchema>;
 
 const Profile = () => {
   const [, setLocation] = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isEditNameOpen, setIsEditNameOpen] = useState(false);
+  const [isEditAvatarOpen, setIsEditAvatarOpen] = useState(false);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
 
   const { data: players = [] } = useQuery<Player[]>({
     queryKey: ["/api/players"],
@@ -32,6 +58,48 @@ const Profile = () => {
     enabled: !!user,
   });
 
+  const nameForm = useForm<UpdateNameForm>({
+    resolver: zodResolver(updateNameSchema),
+    defaultValues: {
+      fullName: user?.fullName || "",
+    },
+  });
+
+  const avatarForm = useForm<UpdateAvatarForm>({
+    resolver: zodResolver(updateAvatarSchema),
+    defaultValues: {
+      avatar: user?.avatar || "",
+    },
+  });
+
+  const updateNameMutation = useMutation({
+    mutationFn: async (data: UpdateNameForm) =>
+      apiRequest(`/api/users/${user?.id}`, "PUT", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      refreshUser();
+      setIsEditNameOpen(false);
+      toast.success("Nome atualizado com sucesso!");
+    },
+    onError: (error: Error) => {
+      toast.error("Erro ao atualizar nome: " + error.message);
+    },
+  });
+
+  const updateAvatarMutation = useMutation({
+    mutationFn: async (data: UpdateAvatarForm) =>
+      apiRequest(`/api/users/${user?.id}`, "PUT", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      refreshUser();
+      setIsEditAvatarOpen(false);
+      toast.success("Foto atualizada com sucesso!");
+    },
+    onError: (error: Error) => {
+      toast.error("Erro ao atualizar foto: " + error.message);
+    },
+  });
+
   const handleSignOut = async () => {
     try {
       await apiRequest("/api/auth/logout", "POST");
@@ -45,6 +113,16 @@ const Profile = () => {
     }
   };
 
+  const handleOpenEditName = () => {
+    nameForm.reset({ fullName: user?.fullName || "" });
+    setIsEditNameOpen(true);
+  };
+
+  const handleOpenEditAvatar = () => {
+    avatarForm.reset({ avatar: user?.avatar || "" });
+    setIsEditAvatarOpen(true);
+  };
+
   if (!user) {
     return null;
   }
@@ -55,15 +133,11 @@ const Profile = () => {
     .join("")
     .toUpperCase() || "U";
 
-  // Encontrar player do usuário
   const userPlayer = players.find(p => p.userId === user.id);
-  
-  // Encontrar pagamentos do usuário
   const userPayments = userPlayer 
     ? payments.filter(p => p.playerId === userPlayer.id)
     : [];
 
-  // Calcular status de pagamento
   const pendingPayments = userPayments.filter(p => p.status === "pending" || p.status === "overdue");
   const nextPayment = pendingPayments.sort((a, b) => 
     new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
@@ -91,7 +165,6 @@ const Profile = () => {
 
   const PaymentIcon = paymentIcon;
 
-  // Traduzir role para português
   const getRoleLabel = (role: string) => {
     const roleMap: Record<string, string> = {
       "presidente": "Presidente",
@@ -103,7 +176,6 @@ const Profile = () => {
     return roleMap[role] || role;
   };
 
-  // Contar jogos do player
   const userGamesCount = userPlayer ? userPlayer.gamesPlayed || 0 : 0;
 
   return (
@@ -144,7 +216,6 @@ const Profile = () => {
           </CardHeader>
           <CardContent className="pt-6">
             <div className="space-y-4">
-              {/* Status de Mensalidade */}
               <div className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <PaymentIcon className={`w-8 h-8 ${paymentColor}`} />
@@ -167,7 +238,6 @@ const Profile = () => {
                 </div>
               )}
 
-              {/* Estatísticas do Jogador */}
               {userPlayer && (
                 <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-800">
                   <div className="text-center">
@@ -228,12 +298,12 @@ const Profile = () => {
               variant="ghost" 
               className="w-full justify-start gap-3 hover:bg-primary/10 hover:text-primary text-white" 
               data-testid="button-settings"
-              disabled
+              onClick={() => setIsSettingsOpen(true)}
             >
               <Settings className="w-5 h-5" />
               <div className="flex-1 text-left">
                 <p>Configurações</p>
-                <p className="text-xs text-gray-400">Em breve</p>
+                <p className="text-xs text-gray-400">Preferências e personalização</p>
               </div>
             </Button>
 
@@ -256,6 +326,220 @@ const Profile = () => {
           <p className="text-xs">Versão 2.0.0</p>
         </div>
       </div>
+
+      {/* Dialog de Configurações */}
+      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <DialogContent className="bg-gray-900 text-white border-primary/20 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5 text-primary" />
+              Configurações
+            </DialogTitle>
+            <DialogDescription>
+              Personalize sua experiência no aplicativo
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 bg-gray-800 border-primary/20 hover:bg-primary/10 hover:text-primary text-white"
+              onClick={() => {
+                setIsSettingsOpen(false);
+                handleOpenEditName();
+              }}
+              data-testid="button-edit-name"
+            >
+              <Edit className="w-5 h-5" />
+              <div className="flex-1 text-left">
+                <p>Alterar Nome</p>
+                <p className="text-xs text-gray-400">Edite seu nome de exibição</p>
+              </div>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 bg-gray-800 border-primary/20 hover:bg-primary/10 hover:text-primary text-white"
+              onClick={() => {
+                setIsSettingsOpen(false);
+                handleOpenEditAvatar();
+              }}
+              data-testid="button-edit-avatar"
+            >
+              <Image className="w-5 h-5" />
+              <div className="flex-1 text-left">
+                <p>Alterar Foto</p>
+                <p className="text-xs text-gray-400">Atualize sua foto de perfil</p>
+              </div>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 bg-gray-800 border-primary/20 hover:bg-primary/10 hover:text-primary text-white"
+              onClick={() => {
+                setIsSettingsOpen(false);
+                setIsInfoOpen(true);
+              }}
+              data-testid="button-info"
+            >
+              <Info className="w-5 h-5" />
+              <div className="flex-1 text-left">
+                <p>Informações</p>
+                <p className="text-xs text-gray-400">Seus dados pessoais</p>
+              </div>
+            </Button>
+
+            <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg border border-primary/20">
+              <div className="flex items-center gap-3">
+                {theme === "dark" ? (
+                  <Moon className="w-5 h-5 text-primary" />
+                ) : (
+                  <Sun className="w-5 h-5 text-primary" />
+                )}
+                <div>
+                  <p className="font-medium">Tema</p>
+                  <p className="text-xs text-gray-400">
+                    {theme === "dark" ? "Modo Escuro" : "Modo Claro"}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={theme === "dark"}
+                onCheckedChange={toggleTheme}
+                data-testid="switch-theme"
+              />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Editar Nome */}
+      <Dialog open={isEditNameOpen} onOpenChange={setIsEditNameOpen}>
+        <DialogContent className="bg-gray-900 text-white border-primary/20">
+          <DialogHeader>
+            <DialogTitle>Alterar Nome</DialogTitle>
+            <DialogDescription>
+              Atualize seu nome de exibição
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...nameForm}>
+            <form onSubmit={nameForm.handleSubmit((data) => updateNameMutation.mutate(data))} className="space-y-4">
+              <FormField
+                control={nameForm.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome Completo</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Seu nome completo"
+                        className="bg-gray-800 border-primary/20 text-white"
+                        data-testid="input-fullname"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={updateNameMutation.isPending} data-testid="button-save-name">
+                  {updateNameMutation.isPending ? "Salvando..." : "Salvar"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Editar Avatar */}
+      <Dialog open={isEditAvatarOpen} onOpenChange={setIsEditAvatarOpen}>
+        <DialogContent className="bg-gray-900 text-white border-primary/20">
+          <DialogHeader>
+            <DialogTitle>Alterar Foto de Perfil</DialogTitle>
+            <DialogDescription>
+              Insira a URL da sua nova foto de perfil
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...avatarForm}>
+            <form onSubmit={avatarForm.handleSubmit((data) => updateAvatarMutation.mutate(data))} className="space-y-4">
+              <FormField
+                control={avatarForm.control}
+                name="avatar"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL da Foto</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="https://exemplo.com/foto.jpg"
+                        className="bg-gray-800 border-primary/20 text-white"
+                        data-testid="input-avatar"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    {field.value && (
+                      <div className="mt-4 flex justify-center">
+                        <Avatar className="w-24 h-24 border-4 border-primary/20">
+                          <AvatarImage src={field.value} alt="Preview" />
+                          <AvatarFallback className="bg-primary text-white">
+                            Prévia
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+                    )}
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={updateAvatarMutation.isPending} data-testid="button-save-avatar">
+                  {updateAvatarMutation.isPending ? "Salvando..." : "Salvar"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Informações */}
+      <Dialog open={isInfoOpen} onOpenChange={setIsInfoOpen}>
+        <DialogContent className="bg-gray-900 text-white border-primary/20">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Info className="w-5 h-5 text-primary" />
+              Informações Pessoais
+            </DialogTitle>
+            <DialogDescription>
+              Seus dados cadastrados no sistema
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-gray-400">Nome Completo</Label>
+              <p className="text-white font-medium">{user.fullName || "Não informado"}</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-gray-400">E-mail</Label>
+              <p className="text-white font-medium">{user.email}</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-gray-400">Função</Label>
+              <Badge className="bg-primary/20 text-primary border-primary/30">
+                {getRoleLabel(user.role)}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-gray-400">Clube</Label>
+              <p className="text-white font-medium">Associação FC</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-gray-400">Membro desde</Label>
+              <p className="text-white font-medium">
+                {format(new Date(user.createdAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <BottomNav />
     </div>
