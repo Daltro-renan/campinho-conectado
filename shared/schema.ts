@@ -55,8 +55,8 @@ export const players = pgTable("players", {
 export const games = pgTable("games", {
   id: serial("id").primaryKey(),
   clubId: integer("club_id").references(() => clubs.id).notNull(),
-  homeTeamId: integer("home_team_id").references(() => teams.id).notNull(),
-  awayTeamId: integer("away_team_id").references(() => teams.id).notNull(),
+  homeTeamId: integer("home_team_id").references(() => squadTeams.id).notNull(),
+  awayTeamId: integer("away_team_id").references(() => squadTeams.id).notNull(),
   homeScore: integer("home_score").default(0),
   awayScore: integer("away_score").default(0),
   gameDate: timestamp("game_date").notNull(),
