@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, DollarSign, Users, Trophy, AlertCircle, CheckCircle, Clock } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/lib/auth";
-import type { Game, Player, Team, Payment } from "@shared/schema";
+import type { Game, Player, Team, Payment, SquadTeam } from "@shared/schema";
 import { format, isPast, isToday, isFuture } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -24,6 +24,12 @@ const Home = () => {
   // Buscar todos os times
   const { data: teams = [] } = useQuery<Team[]>({
     queryKey: ["/api/teams"],
+    enabled: !!user,
+  });
+
+  // Buscar times de categoria (Squad Teams)
+  const { data: squadTeams = [] } = useQuery<SquadTeam[]>({
+    queryKey: ["/api/squad-teams"],
     enabled: !!user,
   });
 
@@ -74,9 +80,9 @@ const Home = () => {
   
   const nextGame = upcomingGames[0];
 
-  // Encontrar os times do próximo jogo
-  const homeTeam = nextGame ? teams.find(t => t.id === nextGame.homeTeamId) : null;
-  const awayTeam = nextGame ? teams.find(t => t.id === nextGame.awayTeamId) : null;
+  // Encontrar os times do próximo jogo (agora usando squadTeams)
+  const homeTeam = nextGame ? squadTeams.find(t => t.id === nextGame.homeTeamId) : null;
+  const awayTeam = nextGame ? squadTeams.find(t => t.id === nextGame.awayTeamId) : null;
 
   // Calcular status de mensalidade
   const userPayments = userPlayer 
@@ -147,25 +153,17 @@ const Home = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-2 flex-1">
-                      {homeTeam.logo ? (
-                        <img src={homeTeam.logo} alt={homeTeam.name} className="w-8 h-8 object-contain" />
-                      ) : (
-                        <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center">
-                          <Trophy className="w-4 h-4 text-primary" />
-                        </div>
-                      )}
+                      <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center">
+                        <Trophy className="w-4 h-4 text-primary" />
+                      </div>
                       <span className="font-semibold text-white">{homeTeam.abbreviation || homeTeam.name}</span>
                     </div>
                     <span className="text-primary font-bold">VS</span>
                     <div className="flex items-center gap-2 flex-1 justify-end">
                       <span className="font-semibold text-white">{awayTeam.abbreviation || awayTeam.name}</span>
-                      {awayTeam.logo ? (
-                        <img src={awayTeam.logo} alt={awayTeam.name} className="w-8 h-8 object-contain" />
-                      ) : (
-                        <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center">
-                          <Trophy className="w-4 h-4 text-primary" />
-                        </div>
-                      )}
+                      <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center">
+                        <Trophy className="w-4 h-4 text-primary" />
+                      </div>
                     </div>
                   </div>
                   <div className="pt-2 border-t border-gray-800 text-sm text-gray-400">

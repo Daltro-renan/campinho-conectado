@@ -59,3 +59,12 @@ Preferred communication style: Simple, everyday language.
 ### Environment Variables
 
 Required: `DATABASE_URL`, `JWT_SECRET`, `NODE_ENV`.
+
+## Recent Changes (October 28, 2025)
+
+**Dashboard Integration with Squad Teams:**
+- Dashboard "Próximo Jogo" card now correctly displays games from the Games tab
+- Games use squadTeams (created in Times tab) instead of the old teams table
+- Next game calculation filters future games and sorts by date to show the closest upcoming match
+- Team names and abbreviations displayed from squadTeams
+- Full integration: Create teams in Times tab → Create games in Games tab → See next game on Dashboard
