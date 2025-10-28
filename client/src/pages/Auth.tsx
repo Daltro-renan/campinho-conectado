@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,46 +7,40 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Trophy } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { apiRequest } from "@/lib/queryClient";
 
 const Auth = () => {
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
+  const { user, login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
+  const [fullName, setFullName] = useState("");
 
   useEffect(() => {
-    // Check if already authenticated
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate("/");
-      }
-    });
-  }, [navigate]);
+    if (user) {
+      setLocation("/");
+    }
+  }, [user, setLocation]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      await apiRequest("/api/auth/register", "POST", {
         email,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            full_name: name,
-          },
-        },
+        fullName,
       });
-
-      if (error) {
-        toast.error(error.message);
-      } else {
-        toast.success("Cadastro realizado! Você pode fazer login agora.");
-      }
+      
+      toast.success("Cadastro realizado! Você pode fazer login agora.");
+      setEmail("");
+      setPassword("");
+      setFullName("");
     } catch (error: any) {
-      toast.error("Erro ao criar conta. Tente novamente.");
+      toast.error(error.message || "Erro ao criar conta. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -58,19 +51,16 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const data = await apiRequest("/api/auth/login", "POST", {
         email,
         password,
       });
 
-      if (error) {
-        toast.error("Email ou senha incorretos");
-      } else {
-        toast.success("Login realizado com sucesso!");
-        navigate("/");
-      }
+      login(data.token);
+      toast.success("Login realizado com sucesso!");
+      setLocation("/");
     } catch (error: any) {
-      toast.error("Erro ao fazer login. Tente novamente.");
+      toast.error("Email ou senha incorretos");
     } finally {
       setLoading(false);
     }
@@ -79,7 +69,6 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary via-secondary to-primary flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo/Header */}
         <div className="text-center mb-8 text-primary-foreground">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-accent rounded-full mb-4">
             <Trophy className="w-10 h-10 text-background" />
@@ -98,8 +87,8 @@ const Auth = () => {
           <CardContent>
             <Tabs defaultValue="login" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="signup">Cadastrar</TabsTrigger>
+                <TabsTrigger value="login" data-testid="tab-login">Login</TabsTrigger>
+                <TabsTrigger value="signup" data-testid="tab-signup">Cadastrar</TabsTrigger>
               </TabsList>
 
               <TabsContent value="login">
@@ -108,6 +97,7 @@ const Auth = () => {
                     <Label htmlFor="email-login">Email</Label>
                     <Input
                       id="email-login"
+                      data-testid="input-email-login"
                       type="email"
                       placeholder="seu@email.com"
                       value={email}
@@ -119,6 +109,7 @@ const Auth = () => {
                     <Label htmlFor="password-login">Senha</Label>
                     <Input
                       id="password-login"
+                      data-testid="input-password-login"
                       type="password"
                       placeholder="••••••••"
                       value={password}
@@ -126,7 +117,12 @@ const Auth = () => {
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={loading}
+                    data-testid="button-login"
+                  >
                     {loading ? "Entrando..." : "Entrar"}
                   </Button>
                 </form>
@@ -138,10 +134,11 @@ const Auth = () => {
                     <Label htmlFor="name">Nome Completo</Label>
                     <Input
                       id="name"
+                      data-testid="input-fullname"
                       type="text"
                       placeholder="Seu nome"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
                       required
                     />
                   </div>
@@ -149,6 +146,7 @@ const Auth = () => {
                     <Label htmlFor="email-signup">Email</Label>
                     <Input
                       id="email-signup"
+                      data-testid="input-email-signup"
                       type="email"
                       placeholder="seu@email.com"
                       value={email}
@@ -160,6 +158,7 @@ const Auth = () => {
                     <Label htmlFor="password-signup">Senha</Label>
                     <Input
                       id="password-signup"
+                      data-testid="input-password-signup"
                       type="password"
                       placeholder="••••••••"
                       value={password}
@@ -168,7 +167,12 @@ const Auth = () => {
                       minLength={6}
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={loading}
+                    data-testid="button-signup"
+                  >
                     {loading ? "Cadastrando..." : "Criar Conta"}
                   </Button>
                 </form>
