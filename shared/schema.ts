@@ -17,14 +17,20 @@ export const teams = pgTable("teams", {
   id: serial("id").primaryKey(),
   clubId: integer("club_id").references(() => clubs.id).notNull(),
   name: text("name").notNull(),
+  abbreviation: text("abbreviation"),
   logo: text("logo"),
+  colorPrimary: text("color_primary"),
+  colorSecondary: text("color_secondary"),
+  city: text("city"),
+  state: text("state"),
   founded: date("founded"),
-  colors: text("colors"),
+  description: text("description"),
   wins: integer("wins").notNull().default(0),
   draws: integer("draws").notNull().default(0),
   losses: integer("losses").notNull().default(0),
   goalsFor: integer("goals_for").notNull().default(0),
   goalsAgainst: integer("goals_against").notNull().default(0),
+  createdBy: integer("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -132,10 +138,16 @@ export const insertUserSchema = z.object({
 
 export const insertTeamSchema = z.object({
   clubId: z.number(),
-  name: z.string().min(1),
+  name: z.string().min(1, "Nome é obrigatório"),
+  abbreviation: z.string().optional(),
   logo: z.string().optional(),
+  colorPrimary: z.string().optional(),
+  colorSecondary: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
   founded: z.string().optional(),
-  colors: z.string().optional(),
+  description: z.string().optional(),
+  createdBy: z.number().optional(),
 }).strict();
 
 export const insertPlayerSchema = z.object({

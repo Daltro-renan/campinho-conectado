@@ -1,0 +1,98 @@
+Crie uma tela e um backend funcional para cadastro e gerenciamento de times de futebol dentro de uma associação.
+Essa tela deve permitir que o usuário administrador (Presidente ou Diretor) cadastre e personalize um novo time dentro da sua associação.
+
+⚙️ Funcionalidades Principais:
+
+Formulário de Cadastro do Time
+
+Nome do time (campo obrigatório)
+
+Sigla ou abreviação (ex: “AFI”, “CRF”)
+
+Cores do time:
+
+Primária (selector de cor)
+
+Secundária (selector de cor)
+
+Upload do escudo/logo do time (imagem em PNG/JPG)
+
+Localização (cidade / estado)
+
+Ano de fundação (opcional)
+
+Descrição do time (campo de texto livre)
+
+Botão “Salvar Time”
+
+Validação e Salvamento
+
+Validar campos obrigatórios.
+
+Salvar os dados no banco de dados (coleção/tabela times).
+
+Cada time deve estar associado ao ID da associação que o criou.
+
+Upload da logo deve gerar URL pública armazenada no Firebase Storage (ou similar).
+
+Exibição e Edição
+
+Após salvar, o usuário deve poder editar informações do time.
+
+Listar todos os times cadastrados com:
+
+Logo
+
+Nome
+
+Cores (exibir um pequeno retângulo com as cores)
+
+Botão “Editar” e “Excluir”
+
+Permissões
+
+Apenas usuários com cargo de Presidente ou Diretor podem criar, editar ou excluir times.
+
+Jogadores e membros comuns apenas visualizam.
+
+Design sugerido
+
+Interface moderna (estilo esportivo).
+
+Card para cada time com logo, nome e cores.
+
+Botões com bordas arredondadas e cores baseadas no tema do time.
+
+Tema escuro opcional.
+
+🧩 Banco de Dados (Exemplo de Estrutura)
+
+Coleção: times
+
+{
+  "id": "auto",
+  "associacaoId": "ID_DA_ASSOCIACAO",
+  "nome": "Associação Futebol Inteligente",
+  "sigla": "AFI",
+  "cores": {
+    "primaria": "#1E90FF",
+    "secundaria": "#FFD700"
+  },
+  "logoUrl": "https://storage.googleapis.com/.../afi.png",
+  "cidade": "São Paulo",
+  "estado": "SP",
+  "fundacao": 2020,
+  "descricao": "Time oficial da AFI",
+  "criadoPor": "userId",
+  "dataCriacao": "2025-10-28T00:00:00Z"
+}
+
+🔐 Extras Opcionais:
+
+Opção de escolher uniforme (camisa 1 e 2 com pré-visualização de cor).
+
+Integração futura com página do time (mostrando elenco e estatísticas).
+
+Campo para redes sociais do time (Instagram, site, etc).
+
+API REST para criar/listar/editar/excluir times (/api/times).
