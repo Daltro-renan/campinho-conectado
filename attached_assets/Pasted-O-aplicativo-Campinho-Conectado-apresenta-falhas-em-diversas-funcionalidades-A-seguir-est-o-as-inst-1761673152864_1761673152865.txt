@@ -1,0 +1,141 @@
+O aplicativo Campinho Conectado apresenta falhas em diversas funcionalidades.
+A seguir estão as instruções detalhadas de correção e aprimoramento que devem ser implementadas para que o sistema funcione corretamente.
+
+O objetivo é garantir que todas as seções estejam integradas, funcionais e com navegação fluida entre as páginas.
+
+🏠 1. Página Inicial (Dashboard do Associado)
+
+Problema atual: os cards não direcionam corretamente e não exibem as informações de forma funcional.
+Correção e melhorias:
+
+Exibir três seções principais no início:
+
+Jogos: mostrar o próximo jogo conforme a data atual.
+
+Deve exibir apenas um jogo, o mais próximo da data atual.
+
+Ao clicar, direcionar para a página “Jogos”.
+
+Time: exibir o nome e sigla do time principal do usuário.
+
+Ao clicar, direcionar para a página “Times”.
+
+Situação de Mensalidade: mostrar o status do pagamento (em dia, pendente, vencido) e o próximo vencimento.
+
+Ao clicar, direcionar para a página “Pagamentos”.
+
+Essas opções devem funcionar como atalhos navegáveis para as respectivas seções do app.
+
+⚽ 2. Página de Jogos
+
+Problema atual: ao criar um novo jogo, o sistema apresenta erros relacionados à seleção de times e criação de partidas.
+Correção e melhorias:
+
+Corrigir a função de criar novo jogo no calendário.
+
+Os jogos devem obrigatoriamente utilizar os times existentes criados na seção “Times”.
+
+Não permitir seleção de times inexistentes.
+
+Ao salvar, o jogo deve ser gravado corretamente e exibido na lista e no calendário.
+
+Campos obrigatórios:
+
+Time A (selecionado da lista de times criados)
+
+Time B (selecionado da lista de times criados)
+
+Data e hora
+
+Local
+
+Resultado (opcional, editável posteriormente)
+
+Ordenar os jogos pela data, mostrando sempre o mais próximo primeiro.
+
+🧢 3. Página de Times
+
+Situação atual: criação de times funciona, mas está incompleta e a adição de jogadores não é funcional.
+Correção e melhorias:
+
+Ao criar um novo time, adicionar os seguintes campos:
+
+Nome do time
+
+Sigla
+
+Informações adicionais (descrição, cidade, cor, etc.)
+
+Presidente ou responsável
+
+Criar uma seção dentro do time para gestão de jogadores, com as funções:
+
+Criar jogador (nome, posição, número, status)
+
+Excluir jogador
+
+Editar informações do jogador
+
+Garantir que os times criados aqui sejam os mesmos utilizados na aba “Jogos” para definir confrontos.
+
+💬 4. Chat Interno
+
+Situação atual: a interface do chat está correta, mas as mensagens enviadas não aparecem na tela após o envio.
+Correção e melhorias:
+
+As mensagens enviadas devem aparecer imediatamente na caixa de texto (atualização em tempo real).
+
+Cada mensagem deve exibir:
+
+Nome do usuário
+
+Cargo
+
+Data e hora do envio
+
+O chat deve funcionar de forma separada por clube, garantindo que apenas membros do mesmo clube vejam e interajam entre si.
+
+👤 5. Página de Perfil
+
+Situação atual: exibe as opções Meus Pagamentos, Histórico de Jogos e Configurações, mas faltam dados e status do associado.
+Correção e melhorias:
+
+Exibir claramente:
+
+Nome completo, foto e cargo global do usuário.
+
+Abaixo, as opções:
+
+Meus Pagamentos → mostra histórico detalhado (data, valor, status).
+
+Histórico de Jogos → exibe os jogos que o time do usuário participou.
+
+Configurações → editar perfil, sair ou excluir conta.
+
+Adicionar uma caixa de status do associado, contendo:
+
+Status de pagamento (em dia, pendente, vencido).
+
+Próxima data de vencimento.
+
+💳 6. Pagamentos
+
+Melhorias necessárias:
+
+Garantir integração entre o status de pagamento e o painel inicial.
+
+Mostrar histórico completo com data, valor e situação.
+
+Permitir criar novos pagamentos (ex: mensalidade).
+
+Atualizar o status automaticamente nas telas “Início” e “Perfil”.
+
+🧱 7. Integração Geral e Hierarquia
+
+Correções e comportamentos esperados:
+
+Todas as seções devem funcionar de forma conectada (Jogos ↔ Times ↔ Chat ↔ Perfil).
+
+Cada clube mantém sua própria hierarquia local:
+
+Presidente → pode excluir qualquer membro.

@@ -37,7 +37,9 @@ export default function Chat() {
       apiRequest("/api/chat/send", "POST", data),
     onSuccess: () => {
       setMessage("");
-      refetchMessages();
+      // Invalidar cache para forçar atualização imediata
+      queryClient.invalidateQueries({ queryKey: ["/api/chat", clubId, selectedChannel] });
+      queryClient.invalidateQueries({ queryKey: ["/api/chat"] });
       toast({
         title: "Mensagem enviada!",
       });
