@@ -21,13 +21,14 @@ The application was migrated from a Lovable/Supabase architecture to a self-host
 
 **2. Games Page - Fully Integrated with Squad Teams:**
 - Games page now uses squad teams (from Times tab) instead of separate teams table
+- Database schema updated: `games` table now references `squadTeams` instead of `teams`
 - Select dropdowns show teams created in the Times tab with their abbreviations
 - Validation prevents creating games with same team twice
 - Proper chronological ordering: upcoming games first, past games at bottom
-- Automatic clubId assignment
+- Automatic clubId assignment and date conversion to ISO format
 - "Ir para Times" button redirects to /squad-teams if no teams exist
 - Query cache invalidation ensures immediate UI updates after creating games
-- Full integration between Times and Games pages
+- Full integration between Times and Games pages - create teams in Times tab, use them in Games tab
 
 **3. Team Management - Integrated Player CRUD:**
 - Added complete player management within teams:
