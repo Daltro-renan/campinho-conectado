@@ -2,9 +2,30 @@
 
 ## Overview
 
-Campinho Conectado is a full-stack web application for managing amateur football associations. The platform provides comprehensive features for player management, game scheduling, team statistics, news publishing, and user authentication. Built as a mobile-first Progressive Web App (PWA), it serves as a complete management solution for grassroots football organizations.
+Campinho Conectado is a full-stack web application for managing amateur football associations. The platform provides comprehensive features for player management, game scheduling, team statistics, news publishing, payment management (mensalidades), and role-based user authentication. Built as a mobile-first Progressive Web App (PWA), it serves as a complete management solution for grassroots football organizations.
 
-The application was migrated from a Lovable/Supabase architecture to a self-hosted full-stack solution running on Replit, featuring a React frontend with custom JWT authentication and PostgreSQL database backend.
+The application was migrated from a Lovable/Supabase architecture to a self-hosted full-stack solution running on Replit, featuring a React frontend with custom JWT authentication, role-based authorization, and PostgreSQL database backend.
+
+## Recent Changes (October 28, 2025)
+
+**Role-Based Hierarchy System:**
+- Implemented complete three-tier role system: `presidente`, `diretoria`, and `jogador`
+- Admin roles (presidente and diretoria) have full CRUD access to games, players, and payments
+- Regular users (jogador) have read-only access to most resources
+- JWT tokens now include user role for server-side authorization
+
+**Payment Management System (Mensalidades):**
+- Created new `payments` table for tracking monthly player fees
+- Full CRUD API with admin-only access controls
+- Payment tracking includes: amount (in cents), due date, paid date, status, month/year, and notes
+- Status auto-calculated based on payment state (pending, paid, overdue)
+- Dedicated Payments page with filtering by status and player
+
+**Enhanced Security:**
+- Created `requireAdmin` middleware for protecting admin-only routes
+- All mutation routes (create/delete games, players, payments) now require admin role
+- Frontend pages check user role and redirect unauthorized users
+- Payments page completely restricted to admin roles
 
 ## User Preferences
 
@@ -46,35 +67,41 @@ Preferred communication style: Simple, everyday language.
 - Development mode uses Vite middleware for HMR
 
 **Authentication & Security:**
-- JWT-based authentication (replacing Supabase Auth)
+- JWT-based authentication with role-based authorization (replacing Supabase Auth)
+- JWT payload includes: user id, email, and role for permission checks
 - bcryptjs for password hashing (10 rounds)
-- Token verification middleware protecting all authenticated routes
+- `authenticateToken` middleware for verifying JWT on protected routes
+- `requireAdmin` middleware for restricting admin-only operations
 - Token stored in localStorage on client, sent via Authorization header
+- Three-tier role system: presidente (admin), diretoria (admin), jogador (regular user)
 
 **Database Layer:**
 - Drizzle ORM for type-safe database operations
 - PostgreSQL schema with the following tables:
-  - `users`: User accounts with email, password hash, role, avatar
+  - `users`: User accounts with email, password hash, role (presidente/diretoria/jogador), avatar
   - `teams`: Team information including stats (wins, draws, losses, goals)
   - `players`: Player profiles linked to users and teams with statistics
   - `games`: Match scheduling with home/away teams, scores, dates, venues
   - `news`: News articles with title, content, author, published status
+  - `payments`: Monthly fee tracking with playerId, amount, dueDate, paidDate, status, month, year, notes
 
 **API Design:**
 - RESTful endpoints under `/api` prefix
 - Authentication endpoints: `/api/auth/register`, `/api/auth/login`, `/api/auth/me`
-- Resource endpoints for teams, players, games, and news
+- Resource endpoints for teams, players, games, news, and payments
+- Admin-only endpoints: POST/DELETE games, POST/DELETE players, all payment operations
 - Zod schemas for request validation (defined in shared/schema.ts)
 - Shared TypeScript types between client and server
+- All insert schemas use `.strict()` for enhanced security
 
 ### Code Organization
 
 **Monorepo Structure:**
 - `client/`: Frontend React application
-  - `src/pages/`: Route components (Home, Auth, Games, Team, Profile)
+  - `src/pages/`: Route components (Home, Auth, Games, Team, Profile, Payments)
   - `src/components/`: Reusable components including BottomNav
   - `src/components/ui/`: shadcn component library
-  - `src/lib/`: Utilities (auth context, query client, utils)
+  - `src/lib/`: Utilities (auth context with role checking, query client, utils)
   - `src/hooks/`: Custom React hooks
 - `server/`: Backend Express application
   - `index.ts`: Server entry point and middleware setup
