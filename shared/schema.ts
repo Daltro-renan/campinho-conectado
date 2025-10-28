@@ -30,6 +30,7 @@ export const players = pgTable("players", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),
   teamId: integer("team_id").references(() => teams.id),
+  squadTeamId: integer("squad_team_id").references(() => squadTeams.id),
   name: text("name").notNull(),
   position: text("position").notNull(),
   jerseyNumber: integer("jersey_number"),
@@ -73,7 +74,27 @@ export const payments = pgTable("payments", {
   status: text("status").notNull().default("pending"),
   month: integer("month").notNull(),
   year: integer("year").notNull(),
+  paymentMethod: text("payment_method"),
   notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const squadTeams = pgTable("squad_teams", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  category: text("category").notNull(),
+  associationId: integer("association_id").references(() => teams.id).notNull(),
+  coachId: integer("coach_id").references(() => users.id),
+  createdBy: integer("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  authorId: integer("author_id").references(() => users.id).notNull(),
+  associationId: integer("association_id").references(() => teams.id).notNull(),
+  channel: text("channel").notNull(),
+  content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -92,6 +113,7 @@ export const insertTeamSchema = z.object({
 export const insertPlayerSchema = z.object({
   userId: z.number().optional(),
   teamId: z.number().optional(),
+  squadTeamId: z.number().optional(),
   name: z.string().min(1),
   position: z.string().min(1),
   jerseyNumber: z.number().optional(),
@@ -120,7 +142,23 @@ export const insertPaymentSchema = z.object({
   status: z.enum(["pending", "paid", "overdue"]).optional(),
   month: z.number().min(1).max(12),
   year: z.number(),
+  paymentMethod: z.enum(["pix", "credit_card", "debit_card", "cash"]).optional(),
   notes: z.string().optional(),
+}).strict();
+
+export const insertSquadTeamSchema = z.object({
+  name: z.string().min(1),
+  category: z.string().min(1),
+  associationId: z.number(),
+  coachId: z.number().optional(),
+  createdBy: z.number(),
+}).strict();
+
+export const insertMessageSchema = z.object({
+  authorId: z.number(),
+  associationId: z.number(),
+  channel: z.enum(["diretoria", "tecnicos", "geral"]),
+  content: z.string().min(1).max(1000),
 }).strict();
 
 export const loginSchema = z.object({
@@ -147,3 +185,9 @@ export type InsertNews = z.infer<typeof insertNewsSchema>;
 
 export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+
+export type SquadTeam = typeof squadTeams.$inferSelect;
+export type InsertSquadTeam = z.infer<typeof insertSquadTeamSchema>;
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;

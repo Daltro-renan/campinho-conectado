@@ -4,10 +4,12 @@ import type {
   Player, InsertPlayer,
   Game, InsertGame,
   News, InsertNews,
-  Payment, InsertPayment
+  Payment, InsertPayment,
+  SquadTeam, InsertSquadTeam,
+  Message, InsertMessage
 } from "@shared/schema";
 import { db } from "./db";
-import { users, teams, players, games, news, payments } from "@shared/schema";
+import { users, teams, players, games, news, payments, squadTeams, messages } from "@shared/schema";
 import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
@@ -49,6 +51,21 @@ export interface IStorage {
   createPayment(payment: Partial<InsertPayment>): Promise<Payment>;
   updatePayment(id: number, payment: Partial<Payment>): Promise<Payment | undefined>;
   deletePayment(id: number): Promise<void>;
+  
+  getSquadTeams(): Promise<SquadTeam[]>;
+  getSquadTeamsByAssociation(associationId: number): Promise<SquadTeam[]>;
+  getSquadTeamById(id: number): Promise<SquadTeam | undefined>;
+  createSquadTeam(squadTeam: Partial<InsertSquadTeam>): Promise<SquadTeam>;
+  updateSquadTeam(id: number, squadTeam: Partial<SquadTeam>): Promise<SquadTeam | undefined>;
+  deleteSquadTeam(id: number): Promise<void>;
+  addPlayerToSquadTeam(squadTeamId: number, playerId: number): Promise<Player | undefined>;
+  removePlayerFromSquadTeam(playerId: number): Promise<void>;
+  getPlayersBySquadTeam(squadTeamId: number): Promise<Player[]>;
+  
+  getMessages(associationId: number, channel: string): Promise<Message[]>;
+  getMessageById(id: number): Promise<Message | undefined>;
+  createMessage(message: Partial<InsertMessage>): Promise<Message>;
+  deleteMessage(id: number): Promise<void>;
 }
 
 class DbStorage implements IStorage {
@@ -208,6 +225,68 @@ class DbStorage implements IStorage {
 
   async deletePayment(id: number): Promise<void> {
     await db.delete(payments).where(eq(payments.id, id));
+  }
+
+  async getSquadTeams(): Promise<SquadTeam[]> {
+    return await db.select().from(squadTeams).orderBy(desc(squadTeams.createdAt));
+  }
+
+  async getSquadTeamsByAssociation(associationId: number): Promise<SquadTeam[]> {
+    return await db.select().from(squadTeams).where(eq(squadTeams.associationId, associationId));
+  }
+
+  async getSquadTeamById(id: number): Promise<SquadTeam | undefined> {
+    const [squadTeam] = await db.select().from(squadTeams).where(eq(squadTeams.id, id));
+    return squadTeam;
+  }
+
+  async createSquadTeam(squadTeamData: Partial<InsertSquadTeam>): Promise<SquadTeam> {
+    const [squadTeam] = await db.insert(squadTeams).values(squadTeamData as any).returning();
+    return squadTeam;
+  }
+
+  async updateSquadTeam(id: number, squadTeamData: Partial<SquadTeam>): Promise<SquadTeam | undefined> {
+    const [squadTeam] = await db.update(squadTeams).set(squadTeamData).where(eq(squadTeams.id, id)).returning();
+    return squadTeam;
+  }
+
+  async deleteSquadTeam(id: number): Promise<void> {
+    await db.delete(squadTeams).where(eq(squadTeams.id, id));
+  }
+
+  async addPlayerToSquadTeam(squadTeamId: number, playerId: number): Promise<Player | undefined> {
+    const [player] = await db.update(players).set({ squadTeamId }).where(eq(players.id, playerId)).returning();
+    return player;
+  }
+
+  async removePlayerFromSquadTeam(playerId: number): Promise<void> {
+    await db.update(players).set({ squadTeamId: null }).where(eq(players.id, playerId));
+  }
+
+  async getPlayersBySquadTeam(squadTeamId: number): Promise<Player[]> {
+    return await db.select().from(players).where(eq(players.squadTeamId, squadTeamId));
+  }
+
+  async getMessages(associationId: number, channel: string): Promise<Message[]> {
+    return await db.select()
+      .from(messages)
+      .where(and(eq(messages.associationId, associationId), eq(messages.channel, channel)))
+      .orderBy(desc(messages.createdAt))
+      .limit(100);
+  }
+
+  async getMessageById(id: number): Promise<Message | undefined> {
+    const [message] = await db.select().from(messages).where(eq(messages.id, id));
+    return message;
+  }
+
+  async createMessage(messageData: Partial<InsertMessage>): Promise<Message> {
+    const [message] = await db.insert(messages).values(messageData as any).returning();
+    return message;
+  }
+
+  async deleteMessage(id: number): Promise<void> {
+    await db.delete(messages).where(eq(messages.id, id));
   }
 }
 

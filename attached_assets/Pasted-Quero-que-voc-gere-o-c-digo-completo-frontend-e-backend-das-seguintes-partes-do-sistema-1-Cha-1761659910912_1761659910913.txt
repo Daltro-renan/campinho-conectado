@@ -1,0 +1,154 @@
+Quero que você gere o código completo (frontend e backend) das seguintes partes do sistema:
+
+1️⃣ Chat interno hierárquico
+
+Cada associação tem seu próprio chat interno.
+
+Somente membros da mesma associação podem conversar.
+
+O chat deve ter canais:
+
+“Diretoria” (visível apenas para presidente e diretores)
+
+“Técnicos” (visível para técnicos e direção)
+
+“Geral” (todos os membros)
+
+Mensagens devem ter: autor, cargo, data, texto e ID da associação.
+
+O backend deve armazenar as mensagens no banco (MongoDB ou Firebase).
+
+O frontend deve mostrar em tempo real (pode usar onSnapshot no Firebase ou socket.io se preferir Express).
+
+Rotas sugeridas (backend):
+
+POST /api/chat/send → envia mensagem
+
+GET /api/chat/:associationId/:channel → busca mensagens do canal
+
+Componentes sugeridos (frontend):
+
+ChatRoom.jsx
+
+ChatMessage.jsx
+
+ChatSidebar.jsx
+
+2️⃣ Gestão de times e jogadores
+
+O presidente e diretores podem criar times dentro da associação.
+
+Cada time tem nome, categoria e lista de jogadores.
+
+Técnicos podem adicionar ou remover jogadores do seu time.
+
+Jogadores aparecem vinculados à sua equipe.
+
+Rotas sugeridas (backend):
+
+POST /api/team/create
+
+DELETE /api/team/:id
+
+POST /api/team/:id/addPlayer
+
+DELETE /api/team/:id/removePlayer/:playerId
+
+Componentes sugeridos (frontend):
+
+TeamsList.jsx → lista os times
+
+TeamForm.jsx → formulário para criar/editar times
+
+PlayersTable.jsx → lista e gerencia jogadores do time
+
+Banco de dados (exemplo MongoDB):
+
+{
+  name: "Sub-17",
+  associationId: "123",
+  players: [
+    { id: "player1", name: "João", position: "Atacante" }
+  ],
+  createdBy: "diretor123"
+}
+
+3️⃣ Sistema de pagamento de mensalidade
+
+O jogador deve poder pagar sua mensalidade via PIX ou cartão (ex: Stripe).
+
+Cada associação define um valor mensal (ex: R$ 50).
+
+O pagamento deve registrar no backend:
+
+ID do jogador
+
+valor pago
+
+data
+
+método de pagamento
+
+status (“pago”, “pendente”)
+
+Rotas sugeridas (backend):
+
+POST /api/payments/create → cria a cobrança
+
+GET /api/payments/:playerId → histórico de pagamentos
+
+Componentes (frontend):
+
+PaymentPage.jsx → tela do jogador para pagar
+
+AdminPayments.jsx → tela da diretoria para ver pagamentos
+
+Integração com Stripe (exemplo):
+
+npm install stripe
+
+
+e configure:
+
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
+
+Modelo no banco:
+
+{
+  playerId: "abc123",
+  associationId: "xyz789",
+  amount: 50,
+  method: "pix",
+  status: "pago",
+  createdAt: new Date()
+}
+
+
+🧩 Instruções técnicas para a IA:
+
+Crie o código de backend (Express) e frontend (React) para cada funcionalidade acima.
+
+Mostre o conteúdo dos arquivos exatos (ex: routes/chat.js, controllers/chatController.js, client/src/pages/ChatRoom.jsx).
+
+Use fetch ou axios nas chamadas entre frontend e backend.
+
+Organize o código em blocos limpos e comentados.
+
+Adicione explicações de como testar cada rota ou componente no Replit.
+
+Se possível, inclua dados fake (mock) para visualização rápida.
+
+Sempre valide a hierarquia antes de executar ações (ex: if (user.role !== 'presidente') return 403;).
+
+Importante: Todo o código deve ser compatível com Vite + Tailwind + Replit.
+
+🚀 Ação:
+
+Gere o código completo (rotas, controllers e componentes) para implementar:
+
+o Chat hierárquico interno,
+
+a gestão de times e jogadores,
+
+e o sistema de pagamento.
