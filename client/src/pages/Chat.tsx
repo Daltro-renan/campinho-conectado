@@ -28,7 +28,7 @@ export default function Chat() {
   const clubId = 1;
 
   const { data: messages = [], refetch: refetchMessages } = useQuery<Message[]>({
-    queryKey: ["/api/chat", clubId, selectedChannel],
+    queryKey: [`/api/chat/${clubId}/${selectedChannel}`],
     refetchInterval: 3000,
   });
 
@@ -38,8 +38,7 @@ export default function Chat() {
     onSuccess: () => {
       setMessage("");
       // Invalidar cache para forçar atualização imediata
-      queryClient.invalidateQueries({ queryKey: ["/api/chat", clubId, selectedChannel] });
-      queryClient.invalidateQueries({ queryKey: ["/api/chat"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/chat/${clubId}/${selectedChannel}`] });
       toast({
         title: "Mensagem enviada!",
       });

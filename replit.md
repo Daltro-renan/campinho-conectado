@@ -62,6 +62,13 @@ Required: `DATABASE_URL`, `JWT_SECRET`, `NODE_ENV`.
 
 ## Recent Changes (October 28, 2025)
 
+**Chat System Fixed:**
+- Fixed message retrieval in Chat page - messages now display correctly
+- Corrected API endpoint URL format from query parameters to path parameters (`/api/chat/1/geral` instead of `/api/chat?clubId=1&channel=geral`)
+- Updated cache invalidation to use proper query key format
+- Auto-refresh every 3 seconds maintains real-time messaging
+- Three channels: Geral (all members), Técnicos (diretoria + técnicos), Diretoria (presidente + diretoria only)
+
 **Dashboard Integration with Squad Teams:**
 - Dashboard "Próximo Jogo" card now correctly displays games from the Games tab
 - Games use squadTeams (created in Times tab) instead of the old teams table
