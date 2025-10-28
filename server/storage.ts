@@ -322,10 +322,22 @@ class DbStorage implements IStorage {
     const clubIds = userMemberships.map(m => m.clubId);
     if (clubIds.length === 0) return [];
     
-    return await db.select().from(clubs).where(
-      // @ts-ignore - drizzle inOp typing issue
-      eq(clubs.id, clubIds[0])
-    );
+    // Use a more direct join approach
+    const results = await db.select({
+      id: clubs.id,
+      name: clubs.name,
+      description: clubs.description,
+      logo: clubs.logo,
+      foundedDate: clubs.foundedDate,
+      colors: clubs.colors,
+      createdBy: clubs.createdBy,
+      createdAt: clubs.createdAt,
+    })
+      .from(clubs)
+      .innerJoin(memberships, eq(clubs.id, memberships.clubId))
+      .where(eq(memberships.userId, userId));
+    
+    return results;
   }
 
   async createClub(clubData: Partial<InsertClub>): Promise<Club> {
