@@ -8,6 +8,62 @@ The application was migrated from a Lovable/Supabase architecture to a self-host
 
 ## Recent Changes (October 28, 2025)
 
+**Complete UI/UX Overhaul - Integrated User Experience:**
+
+**1. Dashboard (Home Page) - Unified User Experience:**
+- Completely rebuilt with 3 navigable cards showing real-time data:
+  - **Próximo Jogo Card**: Shows ONLY the next upcoming game with team logos, date/time, and venue (navigates to /games)
+  - **Meu Time Card**: Displays user's primary team with logo, colors, location, and statistics (navigates to /team)
+  - **Mensalidade Card**: Real payment status calculation (Em dia/Pendente/Vencido) with color-coded badges (navigates to /payments)
+- All data fetched from database with cross-references between players, teams, games, and payments
+- Team statistics displayed: wins, draws, losses, goal difference
+- Visual indicators for payment urgency (red for overdue, yellow for pending, green for paid)
+
+**2. Games Page - Enhanced Game Management:**
+- Fixed form to use Select dropdowns for choosing teams (no more manual ID entry)
+- Validation prevents creating games with same team twice
+- Shows team logos and names in game cards
+- Proper chronological ordering: upcoming games first, past games at bottom
+- Automatic clubId assignment
+- Error handling for empty team database
+- Query cache invalidation ensures immediate UI updates after creating games
+
+**3. Team Management - Integrated Player CRUD:**
+- Added complete player management within teams:
+  - "Gerenciar Jogadores" button on each team card
+  - Dialog showing all players on the team
+  - "Adicionar Jogador" form with name, position, number, and photo URL
+  - Individual player delete buttons
+  - Player count displayed on each team card
+- All player operations use react-hook-form with zod validation
+- Immediate cache invalidation for real-time updates
+- Full integration with existing team CRUD operations
+
+**4. Chat - Real-time Messaging:**
+- Fixed: Messages now appear immediately after sending
+- Added queryClient.invalidateQueries for instant cache updates
+- Maintains auto-refresh every 3 seconds for new messages
+- Proper channel separation (geral/tecnicos/diretoria)
+
+**5. Profile Page - Comprehensive User View:**
+- Displays user avatar/photo with fallback to initials
+- Shows translated role badge (Presidente, Diretoria, Técnico, Jogador)
+- Real-time payment status with visual indicators and urgency badges
+- Player statistics card: goals, assists, games played
+- Functional navigation buttons:
+  - "Meus Pagamentos" → navigates to /payments with payment count
+  - "Histórico de Jogos" → navigates to /games with game count
+  - "Configurações" → disabled (placeholder for future)
+- Member since date displayed
+- App version info
+
+**6. Cross-Page Integration:**
+- Home, Profile, and Payments synchronized via shared queries
+- Payment status calculation consistent across all pages
+- Player data cross-referenced with teams, games, and payments
+- All pages use queryClient.invalidateQueries for immediate updates
+- Unified navigation flow between all sections
+
 **Comprehensive Team Management System:**
 - Expanded `teams` table with visual and location fields:
   - `abbreviation` (sigla/short code for team)
@@ -15,11 +71,10 @@ The application was migrated from a Lovable/Supabase architecture to a self-host
   - `city` and `state` (location data)
   - `description` (team history/mission)
   - `createdBy` (user ID who created the team)
-- New Team Management page (`/team`) with full CRUD capabilities:
-  - Visual team cards displaying logo, colors, location
-  - Modal form for creating/editing teams with color pickers
-  - URL-based logo upload support
-  - Admin-only permissions (presidente/diretoria) for team management
+- Visual team cards displaying logo, colors, location
+- Modal form for creating/editing teams with color pickers
+- URL-based logo upload support
+- Admin-only permissions (presidente/diretoria) for team management
 - Backend secured with `requireAdmin` middleware for all team mutations
 - All new teams automatically associated with current club (clubId=1)
 
