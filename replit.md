@@ -94,14 +94,27 @@ The application was migrated from a Lovable/Supabase architecture to a self-host
 - Backend permission checks enforce channel access rules
 - Dedicated Chat page with tab-based interface
 
-**Squad Team Management System:**
-- New `squadTeams` table for managing team categories (Sub-17, Sub-20, etc.)
-- Full CRUD operations with role-based permissions:
-  - Create/Delete teams: admin only (presidente/diretoria)
-  - Edit teams & manage players: admin or assigned técnico
-- Coach assignment system linking técnicos to teams
-- Player roster management (add/remove players from teams)
-- Dedicated SquadTeams page with team listing and player management dialogs
+**Complete Squad Team Management System (Times de Categoria):**
+- Expanded `squadTeams` table with full team details:
+  - Name, abbreviation (sigla), category, description
+  - Coach assignment (coachId) and creation tracking (createdBy)
+- Expanded `players` table with status field:
+  - Players can be marked as "active" or "inactive"
+  - Full player details: name, position, jersey number, photo, status
+- Comprehensive team management features:
+  - Create new teams with name, abbreviation, category, and description
+  - Delete teams (admin only)
+  - View all teams with player counts (total and active)
+- Complete player management within teams:
+  - Create new players directly in the team (not just assign existing ones)
+  - Edit player information (name, position, number, status, photo)
+  - Delete players individually
+  - View player status visually (green checkmark for active, gray X for inactive)
+  - Display jersey numbers in colored badges
+- Dedicated "Times" tab in navigation
+- Dashboard "Meu Time" card redirects to Times page (/squad-teams)
+- Admin-only permissions for all mutations (presidente/diretoria)
+- Full integration with react-hook-form and zod validation
 
 **Enhanced Payment Management:**
 - Added `paymentMethod` field to payments table

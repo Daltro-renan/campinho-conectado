@@ -43,6 +43,7 @@ export const players = pgTable("players", {
   position: text("position").notNull(),
   jerseyNumber: integer("jersey_number"),
   photo: text("photo"),
+  status: text("status").notNull().default("active"),
   goals: integer("goals").notNull().default(0),
   assists: integer("assists").notNull().default(0),
   yellowCards: integer("yellow_cards").notNull().default(0),
@@ -93,7 +94,9 @@ export const squadTeams = pgTable("squad_teams", {
   id: serial("id").primaryKey(),
   clubId: integer("club_id").references(() => clubs.id).notNull(),
   name: text("name").notNull(),
+  abbreviation: text("abbreviation"),
   category: text("category").notNull(),
+  description: text("description"),
   coachId: integer("coach_id").references(() => users.id),
   createdBy: integer("created_by").references(() => users.id).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -158,6 +161,7 @@ export const insertPlayerSchema = z.object({
   position: z.string().min(1),
   jerseyNumber: z.number().optional(),
   photo: z.string().optional(),
+  status: z.enum(["active", "inactive"]).optional(),
 }).strict();
 
 export const insertGameSchema = z.object({
@@ -191,7 +195,9 @@ export const insertPaymentSchema = z.object({
 export const insertSquadTeamSchema = z.object({
   clubId: z.number(),
   name: z.string().min(1),
+  abbreviation: z.string().optional(),
   category: z.string().min(1),
+  description: z.string().optional(),
   coachId: z.number().optional(),
   createdBy: z.number(),
 }).strict();

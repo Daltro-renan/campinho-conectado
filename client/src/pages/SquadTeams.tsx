@@ -5,37 +5,48 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Plus, Trash2, UserPlus, UserMinus, Trophy } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Users, Plus, Trash2, UserPlus, Trophy, Edit, CheckCircle, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { SquadTeam, Player, Team } from "@shared/schema";
+import type { SquadTeam, Player } from "@shared/schema";
 import BottomNav from "@/components/BottomNav";
 
 const squadTeamSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
+  abbreviation: z.string().optional(),
   category: z.string().min(1, "Categoria é obrigatória"),
+  description: z.string().optional(),
   clubId: z.number(),
-  coachId: z.number().optional(),
+});
+
+const playerSchema = z.object({
+  name: z.string().min(1, "Nome é obrigatório"),
+  position: z.string().min(1, "Posição é obrigatória"),
+  jerseyNumber: z.coerce.number().int().positive().optional(),
+  photo: z.string().url().optional().or(z.literal("")),
+  status: z.enum(["active", "inactive"]),
+  squadTeamId: z.number(),
 });
 
 type SquadTeamForm = z.infer<typeof squadTeamSchema>;
+type PlayerForm = z.infer<typeof playerSchema>;
 
 export default function SquadTeams() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
+  const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState<SquadTeam | null>(null);
   const [isPlayerDialogOpen, setIsPlayerDialogOpen] = useState(false);
+  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
 
   const isAdmin = user?.role === "presidente" || user?.role === "diretoria";
-  const isTecnico = user?.role === "tecnico";
-
-  // Use default club ID = 1 (Campinho Conectado)
   const clubId = 1;
 
   const { data: squadTeams = [], isLoading } = useQuery<SquadTeam[]>({
@@ -46,9 +57,27 @@ export default function SquadTeams() {
     queryKey: ["/api/players"],
   });
 
-  const { data: teamPlayers = [] } = useQuery<Player[]>({
-    queryKey: ["/api/squad-teams", selectedTeam, "players"],
-    enabled: selectedTeam !== null,
+  const teamForm = useForm<SquadTeamForm>({
+    resolver: zodResolver(squadTeamSchema),
+    defaultValues: {
+      name: "",
+      abbreviation: "",
+      category: "",
+      description: "",
+      clubId: 1,
+    },
+  });
+
+  const playerForm = useForm<PlayerForm>({
+    resolver: zodResolver(playerSchema),
+    defaultValues: {
+      name: "",
+      position: "",
+      jerseyNumber: undefined,
+      photo: "",
+      status: "active",
+      squadTeamId: 0,
+    },
   });
 
   const createTeamMutation = useMutation({
@@ -59,7 +88,8 @@ export default function SquadTeams() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/squad-teams"] });
-      setIsCreateOpen(false);
+      setIsCreateTeamOpen(false);
+      teamForm.reset();
       toast({
         title: "Time criado!",
         description: "Time de categoria criado com sucesso.",
@@ -85,52 +115,101 @@ export default function SquadTeams() {
     },
   });
 
-  const addPlayerMutation = useMutation({
-    mutationFn: async ({ teamId, playerId }: { teamId: number; playerId: number }) =>
-      apiRequest(`/api/squad-teams/${teamId}/players/${playerId}`, "POST"),
+  const createPlayerMutation = useMutation({
+    mutationFn: async (data: PlayerForm) =>
+      apiRequest("/api/players", "POST", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/squad-teams", selectedTeam, "players"] });
       queryClient.invalidateQueries({ queryKey: ["/api/players"] });
       setIsPlayerDialogOpen(false);
+      playerForm.reset();
       toast({
-        title: "Jogador adicionado!",
+        title: "Jogador criado!",
         description: "Jogador adicionado ao time com sucesso.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao criar jogador",
+        description: error.message,
+        variant: "destructive",
       });
     },
   });
 
-  const removePlayerMutation = useMutation({
-    mutationFn: async ({ teamId, playerId }: { teamId: number; playerId: number }) =>
-      apiRequest(`/api/squad-teams/${teamId}/players/${playerId}`, "DELETE"),
+  const updatePlayerMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<PlayerForm> }) =>
+      apiRequest(`/api/players/${id}`, "PATCH", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/squad-teams", selectedTeam, "players"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/players"] });
+      setEditingPlayer(null);
+      setIsPlayerDialogOpen(false);
+      playerForm.reset();
+      toast({
+        title: "Jogador atualizado!",
+        description: "Informações do jogador atualizadas com sucesso.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao atualizar jogador",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deletePlayerMutation = useMutation({
+    mutationFn: async (id: number) => apiRequest(`/api/players/${id}`, "DELETE"),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/players"] });
       toast({
-        title: "Jogador removido!",
+        title: "Jogador excluído!",
         description: "Jogador removido do time com sucesso.",
       });
     },
   });
 
-  const form = useForm<SquadTeamForm>({
-    resolver: zodResolver(squadTeamSchema),
-    defaultValues: {
-      name: "",
-      category: "",
-      clubId: 1,
-    },
-  });
-
-  const onSubmit = (data: SquadTeamForm) => {
+  const onCreateTeam = (data: SquadTeamForm) => {
     createTeamMutation.mutate(data);
   };
 
-  const availablePlayers = allPlayers.filter(
-    (player) => !player.squadTeamId || player.squadTeamId !== selectedTeam
-  );
+  const onSubmitPlayer = (data: PlayerForm) => {
+    if (editingPlayer) {
+      updatePlayerMutation.mutate({ id: editingPlayer.id, data });
+    } else {
+      createPlayerMutation.mutate(data);
+    }
+  };
 
-  const selectedSquadTeam = squadTeams.find((team) => team.id === selectedTeam);
-  const canManageTeam = isAdmin || (isTecnico && selectedSquadTeam?.coachId === user?.id);
+  const handleOpenPlayerDialog = (team: SquadTeam, player?: Player) => {
+    setSelectedTeam(team);
+    if (player) {
+      setEditingPlayer(player);
+      playerForm.reset({
+        name: player.name,
+        position: player.position,
+        jerseyNumber: player.jerseyNumber || undefined,
+        photo: player.photo || "",
+        status: (player.status as "active" | "inactive") || "active",
+        squadTeamId: team.id,
+      });
+    } else {
+      setEditingPlayer(null);
+      playerForm.reset({
+        name: "",
+        position: "",
+        jerseyNumber: undefined,
+        photo: "",
+        status: "active",
+        squadTeamId: team.id,
+      });
+    }
+    setIsPlayerDialogOpen(true);
+  };
+
+  const getTeamPlayers = (teamId: number) => {
+    return allPlayers.filter(p => p.squadTeamId === teamId);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-orange-950 pb-20">
@@ -138,10 +217,10 @@ export default function SquadTeams() {
         <div className="max-w-lg mx-auto p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Trophy className="w-6 h-6 text-primary" />
-            <h1 className="text-xl font-bold text-white">Times de Categoria</h1>
+            <h1 className="text-xl font-bold text-white">Times</h1>
           </div>
           {isAdmin && (
-            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <Dialog open={isCreateTeamOpen} onOpenChange={setIsCreateTeamOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="bg-primary hover:bg-primary/90" data-testid="button-create-team">
                   <Plus className="w-4 h-4 mr-1" />
@@ -151,12 +230,12 @@ export default function SquadTeams() {
               <DialogContent className="bg-gray-900 text-white border-primary/20">
                 <DialogHeader>
                   <DialogTitle>Criar Time de Categoria</DialogTitle>
-                  <DialogDescription>Adicione um novo time (Sub-17, Sub-20, etc)</DialogDescription>
+                  <DialogDescription>Adicione um novo time (Sub-17, Sub-20, Adulto, etc)</DialogDescription>
                 </DialogHeader>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <Form {...teamForm}>
+                  <form onSubmit={teamForm.handleSubmit(onCreateTeam)} className="space-y-4">
                     <FormField
-                      control={form.control}
+                      control={teamForm.control}
                       name="name"
                       render={({ field }) => (
                         <FormItem>
@@ -166,7 +245,7 @@ export default function SquadTeams() {
                               {...field}
                               placeholder="Ex: Sub-17"
                               data-testid="input-team-name"
-                              className="bg-gray-800 border-primary/20"
+                              className="bg-gray-800 border-primary/20 text-white"
                             />
                           </FormControl>
                           <FormMessage />
@@ -174,7 +253,25 @@ export default function SquadTeams() {
                       )}
                     />
                     <FormField
-                      control={form.control}
+                      control={teamForm.control}
+                      name="abbreviation"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sigla (Opcional)</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Ex: S17"
+                              data-testid="input-team-abbreviation"
+                              className="bg-gray-800 border-primary/20 text-white"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={teamForm.control}
                       name="category"
                       render={({ field }) => (
                         <FormItem>
@@ -182,16 +279,35 @@ export default function SquadTeams() {
                           <FormControl>
                             <Input
                               {...field}
-                              placeholder="Ex: Sub-17, Juvenil, Profissional"
+                              placeholder="Ex: Sub-15, Adulto, Feminino"
                               data-testid="input-team-category"
-                              className="bg-gray-800 border-primary/20"
+                              className="bg-gray-800 border-primary/20 text-white"
                             />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                    <input type="hidden" {...form.register("clubId")} value={1} />
+                    <FormField
+                      control={teamForm.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Descrição / Informações (Opcional)</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              placeholder="Informações adicionais sobre o time..."
+                              data-testid="input-team-description"
+                              className="bg-gray-800 border-primary/20 text-white"
+                              rows={3}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <input type="hidden" {...teamForm.register("clubId")} value={1} />
                     <DialogFooter>
                       <Button type="submit" className="bg-primary hover:bg-primary/90" data-testid="button-submit-team">
                         Criar Time
@@ -221,125 +337,235 @@ export default function SquadTeams() {
             </CardContent>
           </Card>
         ) : (
-          squadTeams.map((team) => (
-            <Card key={team.id} className="bg-gray-900/50 border-primary/20 hover:border-primary/50 transition-all">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-white">{team.name}</CardTitle>
-                    <CardDescription className="text-gray-400">{team.category}</CardDescription>
+          squadTeams.map((team) => {
+            const teamPlayers = getTeamPlayers(team.id);
+            const activePlayers = teamPlayers.filter(p => p.status === "active");
+            
+            return (
+              <Card key={team.id} className="bg-gray-900/50 border-primary/20 hover:border-primary/50 transition-all">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CardTitle className="text-white">{team.name}</CardTitle>
+                        {team.abbreviation && (
+                          <Badge variant="outline" className="text-primary border-primary/30">
+                            {team.abbreviation}
+                          </Badge>
+                        )}
+                      </div>
+                      <CardDescription className="text-gray-400">{team.category}</CardDescription>
+                      {team.description && (
+                        <p className="text-sm text-gray-500 mt-2">{team.description}</p>
+                      )}
+                      <div className="flex gap-3 mt-3 text-sm">
+                        <span className="text-gray-400">
+                          {teamPlayers.length} jogador{teamPlayers.length !== 1 ? "es" : ""}
+                        </span>
+                        <span className="text-green-500">
+                          {activePlayers.length} ativo{activePlayers.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    </div>
+                    {isAdmin && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => deleteTeamMutation.mutate(team.id)}
+                        disabled={deleteTeamMutation.isPending}
+                        data-testid={`button-delete-team-${team.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
+                </CardHeader>
+                <CardContent className="space-y-2">
                   {isAdmin && (
                     <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => deleteTeamMutation.mutate(team.id)}
-                      disabled={deleteTeamMutation.isPending}
-                      data-testid={`button-delete-team-${team.id}`}
+                      variant="default"
+                      className="w-full bg-primary hover:bg-primary/90"
+                      onClick={() => handleOpenPlayerDialog(team)}
+                      data-testid={`button-add-player-${team.id}`}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Adicionar Jogador
                     </Button>
                   )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setSelectedTeam(team.id);
-                  }}
-                  data-testid={`button-view-team-${team.id}`}
-                >
-                  <Users className="w-4 h-4 mr-2" />
-                  Ver Jogadores
-                </Button>
-              </CardContent>
-            </Card>
-          ))
-        )}
-
-        {selectedTeam && (
-          <Dialog open={!!selectedTeam} onOpenChange={() => setSelectedTeam(null)}>
-            <DialogContent className="bg-gray-900 text-white border-primary/20 max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>{selectedSquadTeam?.name} - Jogadores</DialogTitle>
-                <DialogDescription>{selectedSquadTeam?.category}</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 max-h-96 overflow-y-auto">
-                {canManageTeam && (
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setIsPlayerDialogOpen(true)}
-                    data-testid="button-add-player"
-                  >
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Adicionar Jogador
-                  </Button>
-                )}
-                {teamPlayers.length === 0 ? (
-                  <p className="text-center text-gray-400 py-8">Nenhum jogador neste time</p>
-                ) : (
-                  teamPlayers.map((player) => (
-                    <div
-                      key={player.id}
-                      className="flex items-center justify-between p-3 bg-gray-800 rounded-lg"
-                    >
-                      <div>
-                        <p className="font-semibold text-white">{player.name}</p>
-                        <p className="text-sm text-gray-400">{player.position}</p>
-                      </div>
-                      {canManageTeam && (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() =>
-                            removePlayerMutation.mutate({ teamId: selectedTeam, playerId: player.id })
-                          }
-                          data-testid={`button-remove-player-${player.id}`}
+                  
+                  {teamPlayers.length > 0 && (
+                    <div className="space-y-2 mt-4">
+                      <h3 className="text-sm font-semibold text-gray-400 mb-2">Jogadores:</h3>
+                      {teamPlayers.map((player) => (
+                        <div
+                          key={player.id}
+                          className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg"
                         >
-                          <UserMinus className="h-4 w-4" />
-                        </Button>
-                      )}
+                          <div className="flex items-center gap-3 flex-1">
+                            {player.jerseyNumber && (
+                              <div className="w-8 h-8 bg-primary/20 rounded flex items-center justify-center">
+                                <span className="text-primary font-bold text-sm">{player.jerseyNumber}</span>
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold text-white">{player.name}</p>
+                                {player.status === "active" ? (
+                                  <CheckCircle className="w-4 h-4 text-green-500" />
+                                ) : (
+                                  <XCircle className="w-4 h-4 text-gray-500" />
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-400">{player.position}</p>
+                            </div>
+                          </div>
+                          {isAdmin && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenPlayerDialog(team, player)}
+                                data-testid={`button-edit-player-${player.id}`}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => deletePlayerMutation.mutate(player.id)}
+                                data-testid={`button-delete-player-${player.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })
         )}
 
-        {isPlayerDialogOpen && selectedTeam && (
-          <Dialog open={isPlayerDialogOpen} onOpenChange={setIsPlayerDialogOpen}>
-            <DialogContent className="bg-gray-900 text-white border-primary/20">
-              <DialogHeader>
-                <DialogTitle>Adicionar Jogador</DialogTitle>
-                <DialogDescription>Selecione um jogador para adicionar ao time</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {availablePlayers.length === 0 ? (
-                  <p className="text-center text-gray-400 py-8">Todos os jogadores já estão em times</p>
-                ) : (
-                  availablePlayers.map((player) => (
-                    <div
-                      key={player.id}
-                      className="flex items-center justify-between p-3 bg-gray-800 rounded-lg hover:bg-gray-700 cursor-pointer"
-                      onClick={() => addPlayerMutation.mutate({ teamId: selectedTeam, playerId: player.id })}
-                      data-testid={`player-option-${player.id}`}
-                    >
-                      <div>
-                        <p className="font-semibold text-white">{player.name}</p>
-                        <p className="text-sm text-gray-400">{player.position}</p>
-                      </div>
-                      <Plus className="w-5 h-5 text-primary" />
-                    </div>
-                  ))
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+        {/* Dialog para Criar/Editar Jogador */}
+        <Dialog open={isPlayerDialogOpen} onOpenChange={setIsPlayerDialogOpen}>
+          <DialogContent className="bg-gray-900 text-white border-primary/20">
+            <DialogHeader>
+              <DialogTitle>{editingPlayer ? "Editar Jogador" : "Adicionar Jogador"}</DialogTitle>
+              <DialogDescription>
+                {editingPlayer ? "Edite as informações do jogador" : "Preencha os dados do novo jogador"}
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...playerForm}>
+              <form onSubmit={playerForm.handleSubmit(onSubmitPlayer)} className="space-y-4">
+                <FormField
+                  control={playerForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Nome do jogador"
+                          data-testid="input-player-name"
+                          className="bg-gray-800 border-primary/20 text-white"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={playerForm.control}
+                  name="position"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Posição</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Ex: Atacante, Goleiro, Zagueiro"
+                          data-testid="input-player-position"
+                          className="bg-gray-800 border-primary/20 text-white"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={playerForm.control}
+                  name="jerseyNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Número da Camisa (Opcional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          placeholder="Ex: 10"
+                          data-testid="input-player-number"
+                          className="bg-gray-800 border-primary/20 text-white"
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={playerForm.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="bg-gray-800 border-primary/20 text-white" data-testid="select-player-status">
+                            <SelectValue placeholder="Selecione o status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="bg-gray-800 text-white border-primary/20">
+                          <SelectItem value="active">Ativo</SelectItem>
+                          <SelectItem value="inactive">Inativo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={playerForm.control}
+                  name="photo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URL da Foto (Opcional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="https://exemplo.com/foto.jpg"
+                          data-testid="input-player-photo"
+                          className="bg-gray-800 border-primary/20 text-white"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <input type="hidden" {...playerForm.register("squadTeamId")} />
+                <DialogFooter>
+                  <Button type="submit" className="bg-primary hover:bg-primary/90" data-testid="button-submit-player">
+                    {editingPlayer ? "Salvar Alterações" : "Adicionar Jogador"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <BottomNav />
