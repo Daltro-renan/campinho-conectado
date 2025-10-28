@@ -6,10 +6,12 @@ import type {
   News, InsertNews,
   Payment, InsertPayment,
   SquadTeam, InsertSquadTeam,
-  Message, InsertMessage
+  Message, InsertMessage,
+  Club, InsertClub,
+  Membership, InsertMembership
 } from "@shared/schema";
 import { db } from "./db";
-import { users, teams, players, games, news, payments, squadTeams, messages } from "@shared/schema";
+import { users, teams, players, games, news, payments, squadTeams, messages, clubs, memberships } from "@shared/schema";
 import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
@@ -66,6 +68,20 @@ export interface IStorage {
   getMessageById(id: number): Promise<Message | undefined>;
   createMessage(message: Partial<InsertMessage>): Promise<Message>;
   deleteMessage(id: number): Promise<void>;
+  
+  getClubs(): Promise<Club[]>;
+  getClubById(id: number): Promise<Club | undefined>;
+  getClubsByUser(userId: number): Promise<Club[]>;
+  createClub(club: Partial<InsertClub>): Promise<Club>;
+  updateClub(id: number, club: Partial<Club>): Promise<Club | undefined>;
+  deleteClub(id: number): Promise<void>;
+  
+  getMembershipsByUser(userId: number): Promise<Membership[]>;
+  getMembershipsByClub(clubId: number): Promise<Membership[]>;
+  getMembership(userId: number, clubId: number): Promise<Membership | undefined>;
+  createMembership(membership: Partial<InsertMembership>): Promise<Membership>;
+  updateMembership(id: number, membership: Partial<Membership>): Promise<Membership | undefined>;
+  deleteMembership(id: number): Promise<void>;
 }
 
 class DbStorage implements IStorage {
@@ -287,6 +303,72 @@ class DbStorage implements IStorage {
 
   async deleteMessage(id: number): Promise<void> {
     await db.delete(messages).where(eq(messages.id, id));
+  }
+
+  async getClubs(): Promise<Club[]> {
+    return await db.select().from(clubs).orderBy(desc(clubs.createdAt));
+  }
+
+  async getClubById(id: number): Promise<Club | undefined> {
+    const [club] = await db.select().from(clubs).where(eq(clubs.id, id));
+    return club;
+  }
+
+  async getClubsByUser(userId: number): Promise<Club[]> {
+    const userMemberships = await db.select()
+      .from(memberships)
+      .where(eq(memberships.userId, userId));
+    
+    const clubIds = userMemberships.map(m => m.clubId);
+    if (clubIds.length === 0) return [];
+    
+    return await db.select().from(clubs).where(
+      // @ts-ignore - drizzle inOp typing issue
+      eq(clubs.id, clubIds[0])
+    );
+  }
+
+  async createClub(clubData: Partial<InsertClub>): Promise<Club> {
+    const [club] = await db.insert(clubs).values(clubData as any).returning();
+    return club;
+  }
+
+  async updateClub(id: number, clubData: Partial<Club>): Promise<Club | undefined> {
+    const [club] = await db.update(clubs).set(clubData).where(eq(clubs.id, id)).returning();
+    return club;
+  }
+
+  async deleteClub(id: number): Promise<void> {
+    await db.delete(clubs).where(eq(clubs.id, id));
+  }
+
+  async getMembershipsByUser(userId: number): Promise<Membership[]> {
+    return await db.select().from(memberships).where(eq(memberships.userId, userId));
+  }
+
+  async getMembershipsByClub(clubId: number): Promise<Membership[]> {
+    return await db.select().from(memberships).where(eq(memberships.clubId, clubId));
+  }
+
+  async getMembership(userId: number, clubId: number): Promise<Membership | undefined> {
+    const [membership] = await db.select()
+      .from(memberships)
+      .where(and(eq(memberships.userId, userId), eq(memberships.clubId, clubId)));
+    return membership;
+  }
+
+  async createMembership(membershipData: Partial<InsertMembership>): Promise<Membership> {
+    const [membership] = await db.insert(memberships).values(membershipData as any).returning();
+    return membership;
+  }
+
+  async updateMembership(id: number, membershipData: Partial<Membership>): Promise<Membership | undefined> {
+    const [membership] = await db.update(memberships).set(membershipData).where(eq(memberships.id, id)).returning();
+    return membership;
+  }
+
+  async deleteMembership(id: number): Promise<void> {
+    await db.delete(memberships).where(eq(memberships.id, id));
   }
 }
 
