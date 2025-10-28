@@ -166,7 +166,7 @@ export default function SquadTeams() {
 
   const updatePlayerMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<PlayerForm> }) =>
-      apiRequest(`/api/players/${id}`, "PATCH", data),
+      apiRequest(`/api/players/${id}`, "PUT", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/players"] });
       setEditingPlayer(null);
