@@ -611,6 +611,143 @@ export function registerRoutes(app: Express) {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Clubs routes
+  app.get("/api/clubs", authenticateToken, async (req, res) => {
+    try {
+      const clubs = await storage.getClubs();
+      res.json(clubs);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/clubs/my", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const clubs = await storage.getClubsByUser(req.user.id);
+      res.json(clubs);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/clubs/:id", authenticateToken, async (req, res) => {
+    try {
+      const club = await storage.getClubById(parseInt(req.params.id));
+      if (!club) {
+        return res.status(404).json({ error: "Club not found" });
+      }
+      res.json(club);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/clubs", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { insertClubSchema } = await import("@shared/schema");
+      const validatedData = insertClubSchema.parse({
+        ...req.body,
+        createdBy: req.user.id,
+      });
+
+      const club = await storage.createClub(validatedData);
+      
+      // Automatically add creator as presidente
+      await storage.createMembership({
+        userId: req.user.id,
+        clubId: club.id,
+        role: "presidente",
+      });
+
+      res.json(club);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/clubs/:id", authenticateToken, async (req, res) => {
+    try {
+      const club = await storage.updateClub(parseInt(req.params.id), req.body);
+      if (!club) {
+        return res.status(404).json({ error: "Club not found" });
+      }
+      res.json(club);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/clubs/:id", authenticateToken, async (req, res) => {
+    try {
+      await storage.deleteClub(parseInt(req.params.id));
+      res.json({ message: "Club deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Memberships routes
+  app.get("/api/clubs/:clubId/members", authenticateToken, async (req, res) => {
+    try {
+      const members = await storage.getMembershipsByClub(parseInt(req.params.clubId));
+      res.json(members);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/memberships/my", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const memberships = await storage.getMembershipsByUser(req.user.id);
+      res.json(memberships);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/memberships", authenticateToken, async (req, res) => {
+    try {
+      const { insertMembershipSchema } = await import("@shared/schema");
+      const validatedData = insertMembershipSchema.parse(req.body);
+
+      const membership = await storage.createMembership(validatedData);
+      res.json(membership);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/memberships/:id", authenticateToken, async (req, res) => {
+    try {
+      const membership = await storage.updateMembership(parseInt(req.params.id), req.body);
+      if (!membership) {
+        return res.status(404).json({ error: "Membership not found" });
+      }
+      res.json(membership);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/memberships/:id", authenticateToken, async (req, res) => {
+    try {
+      await storage.deleteMembership(parseInt(req.params.id));
+      res.json({ message: "Membership deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 }
 
 // Extend Express Request type
