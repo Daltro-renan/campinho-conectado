@@ -16,7 +16,7 @@ import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Game, Team } from "@shared/schema";
+import type { Game, SquadTeam } from "@shared/schema";
 import { format, isFuture, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -45,8 +45,8 @@ const Games = () => {
     enabled: !!user,
   });
 
-  const { data: teams = [], isLoading: teamsLoading } = useQuery<Team[]>({
-    queryKey: ["/api/teams"],
+  const { data: teams = [], isLoading: teamsLoading } = useQuery<SquadTeam[]>({
+    queryKey: ["/api/squad-teams"],
     enabled: !!user,
   });
 
@@ -200,11 +200,7 @@ const Games = () => {
                                     className="text-white hover:bg-primary/20"
                                   >
                                     <div className="flex items-center gap-2">
-                                      {team.logo ? (
-                                        <img src={team.logo} alt={team.name} className="w-5 h-5 object-contain" />
-                                      ) : (
-                                        <Trophy className="w-4 h-4 text-primary" />
-                                      )}
+                                      <Trophy className="w-4 h-4 text-primary" />
                                       {team.name} {team.abbreviation && `(${team.abbreviation})`}
                                     </div>
                                   </SelectItem>
@@ -236,11 +232,7 @@ const Games = () => {
                                     className="text-white hover:bg-primary/20"
                                   >
                                     <div className="flex items-center gap-2">
-                                      {team.logo ? (
-                                        <img src={team.logo} alt={team.name} className="w-5 h-5 object-contain" />
-                                      ) : (
-                                        <Trophy className="w-4 h-4 text-primary" />
-                                      )}
+                                      <Trophy className="w-4 h-4 text-primary" />
                                       {team.name} {team.abbreviation && `(${team.abbreviation})`}
                                     </div>
                                   </SelectItem>
@@ -320,7 +312,7 @@ const Games = () => {
               </p>
               <Button 
                 className="mt-4 bg-primary hover:bg-primary/90"
-                onClick={() => setLocation("/team")}
+                onClick={() => setLocation("/squad-teams")}
               >
                 Ir para Times
               </Button>
@@ -386,17 +378,9 @@ const Games = () => {
                     <div className="flex items-center justify-between gap-4">
                       {/* Time da Casa */}
                       <div className="flex items-center gap-2 flex-1">
-                        {homeTeam?.logo ? (
-                          <img 
-                            src={homeTeam.logo} 
-                            alt={homeTeam.name} 
-                            className="w-12 h-12 object-contain rounded bg-white/5 p-1"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center">
-                            <Trophy className="w-6 h-6 text-primary" />
-                          </div>
-                        )}
+                        <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center">
+                          <Trophy className="w-6 h-6 text-primary" />
+                        </div>
                         <div>
                           <p className="font-bold text-white">{homeTeam?.name || `Time ${game.homeTeamId}`}</p>
                           {homeTeam?.abbreviation && (
@@ -414,17 +398,9 @@ const Games = () => {
 
                       {/* Time Visitante */}
                       <div className="flex items-center gap-2 flex-1 flex-row-reverse">
-                        {awayTeam?.logo ? (
-                          <img 
-                            src={awayTeam.logo} 
-                            alt={awayTeam.name} 
-                            className="w-12 h-12 object-contain rounded bg-white/5 p-1"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center">
-                            <Trophy className="w-6 h-6 text-primary" />
-                          </div>
-                        )}
+                        <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center">
+                          <Trophy className="w-6 h-6 text-primary" />
+                        </div>
                         <div className="text-right">
                           <p className="font-bold text-white">{awayTeam?.name || `Time ${game.awayTeamId}`}</p>
                           {awayTeam?.abbreviation && (
