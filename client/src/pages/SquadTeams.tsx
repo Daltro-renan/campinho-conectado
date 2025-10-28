@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Users, Plus, Trash2, UserPlus, Trophy, Edit, CheckCircle, XCircle } from "lucide-react";
+import { Users, Plus, Trash2, UserPlus, Trophy, Edit, CheckCircle, XCircle, Crown, Shield, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
@@ -32,6 +32,7 @@ const playerSchema = z.object({
   jerseyNumber: z.coerce.number().int().positive().optional(),
   photo: z.string().url().optional().or(z.literal("")),
   status: z.enum(["active", "inactive"]),
+  teamRole: z.enum(["capitao", "diretor_time", "jogador"]),
   squadTeamId: z.number(),
 });
 
@@ -41,11 +42,13 @@ type PlayerForm = z.infer<typeof playerSchema>;
 export default function SquadTeams() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
+  const [isTeamDialogOpen, setIsTeamDialogOpen] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<SquadTeam | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<SquadTeam | null>(null);
   const [isPlayerDialogOpen, setIsPlayerDialogOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
 
+  const isPresidente = user?.role === "presidente";
   const isAdmin = user?.role === "presidente" || user?.role === "diretoria";
   const clubId = 1;
 
@@ -76,6 +79,7 @@ export default function SquadTeams() {
       jerseyNumber: undefined,
       photo: "",
       status: "active",
+      teamRole: "jogador",
       squadTeamId: 0,
     },
   });
@@ -88,7 +92,8 @@ export default function SquadTeams() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/squad-teams"] });
-      setIsCreateTeamOpen(false);
+      setIsTeamDialogOpen(false);
+      setEditingTeam(null);
       teamForm.reset();
       toast({
         title: "Time criado!",
@@ -98,6 +103,28 @@ export default function SquadTeams() {
     onError: (error: Error) => {
       toast({
         title: "Erro ao criar time",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateTeamMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<SquadTeamForm> }) =>
+      apiRequest(`/api/squad-teams/${id}`, "PUT", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/squad-teams"] });
+      setIsTeamDialogOpen(false);
+      setEditingTeam(null);
+      teamForm.reset();
+      toast({
+        title: "Time atualizado!",
+        description: "Informações do time atualizadas com sucesso.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao atualizar time",
         description: error.message,
         variant: "destructive",
       });
@@ -121,6 +148,7 @@ export default function SquadTeams() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/players"] });
       setIsPlayerDialogOpen(false);
+      setEditingPlayer(null);
       playerForm.reset();
       toast({
         title: "Jogador criado!",
@@ -169,8 +197,12 @@ export default function SquadTeams() {
     },
   });
 
-  const onCreateTeam = (data: SquadTeamForm) => {
-    createTeamMutation.mutate(data);
+  const onSubmitTeam = (data: SquadTeamForm) => {
+    if (editingTeam) {
+      updateTeamMutation.mutate({ id: editingTeam.id, data });
+    } else {
+      createTeamMutation.mutate(data);
+    }
   };
 
   const onSubmitPlayer = (data: PlayerForm) => {
@@ -179,6 +211,29 @@ export default function SquadTeams() {
     } else {
       createPlayerMutation.mutate(data);
     }
+  };
+
+  const handleOpenTeamDialog = (team?: SquadTeam) => {
+    if (team) {
+      setEditingTeam(team);
+      teamForm.reset({
+        name: team.name,
+        abbreviation: team.abbreviation || "",
+        category: team.category,
+        description: team.description || "",
+        clubId: team.clubId,
+      });
+    } else {
+      setEditingTeam(null);
+      teamForm.reset({
+        name: "",
+        abbreviation: "",
+        category: "",
+        description: "",
+        clubId: 1,
+      });
+    }
+    setIsTeamDialogOpen(true);
   };
 
   const handleOpenPlayerDialog = (team: SquadTeam, player?: Player) => {
@@ -191,6 +246,7 @@ export default function SquadTeams() {
         jerseyNumber: player.jerseyNumber || undefined,
         photo: player.photo || "",
         status: (player.status as "active" | "inactive") || "active",
+        teamRole: (player.teamRole as "capitao" | "diretor_time" | "jogador") || "jogador",
         squadTeamId: team.id,
       });
     } else {
@@ -201,6 +257,7 @@ export default function SquadTeams() {
         jerseyNumber: undefined,
         photo: "",
         status: "active",
+        teamRole: "jogador",
         squadTeamId: team.id,
       });
     }
@@ -209,6 +266,39 @@ export default function SquadTeams() {
 
   const getTeamPlayers = (teamId: number) => {
     return allPlayers.filter(p => p.squadTeamId === teamId);
+  };
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case "capitao":
+        return <Crown className="w-4 h-4 text-yellow-500" />;
+      case "diretor_time":
+        return <Shield className="w-4 h-4 text-blue-500" />;
+      default:
+        return <User className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case "capitao":
+        return "Capitão";
+      case "diretor_time":
+        return "Diretor do Time";
+      default:
+        return "Jogador";
+    }
+  };
+
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case "capitao":
+        return "bg-yellow-500/20 text-yellow-500 border-yellow-500/30";
+      case "diretor_time":
+        return "bg-blue-500/20 text-blue-500 border-blue-500/30";
+      default:
+        return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+    }
   };
 
   return (
@@ -220,103 +310,15 @@ export default function SquadTeams() {
             <h1 className="text-xl font-bold text-white">Times</h1>
           </div>
           {isAdmin && (
-            <Dialog open={isCreateTeamOpen} onOpenChange={setIsCreateTeamOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="bg-primary hover:bg-primary/90" data-testid="button-create-team">
-                  <Plus className="w-4 h-4 mr-1" />
-                  Novo Time
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-gray-900 text-white border-primary/20">
-                <DialogHeader>
-                  <DialogTitle>Criar Time de Categoria</DialogTitle>
-                  <DialogDescription>Adicione um novo time (Sub-17, Sub-20, Adulto, etc)</DialogDescription>
-                </DialogHeader>
-                <Form {...teamForm}>
-                  <form onSubmit={teamForm.handleSubmit(onCreateTeam)} className="space-y-4">
-                    <FormField
-                      control={teamForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome do Time</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="Ex: Sub-17"
-                              data-testid="input-team-name"
-                              className="bg-gray-800 border-primary/20 text-white"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={teamForm.control}
-                      name="abbreviation"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Sigla (Opcional)</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="Ex: S17"
-                              data-testid="input-team-abbreviation"
-                              className="bg-gray-800 border-primary/20 text-white"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={teamForm.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Categoria</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="Ex: Sub-15, Adulto, Feminino"
-                              data-testid="input-team-category"
-                              className="bg-gray-800 border-primary/20 text-white"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={teamForm.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Descrição / Informações (Opcional)</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              {...field}
-                              placeholder="Informações adicionais sobre o time..."
-                              data-testid="input-team-description"
-                              className="bg-gray-800 border-primary/20 text-white"
-                              rows={3}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <input type="hidden" {...teamForm.register("clubId")} value={1} />
-                    <DialogFooter>
-                      <Button type="submit" className="bg-primary hover:bg-primary/90" data-testid="button-submit-team">
-                        Criar Time
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
+            <Button 
+              size="sm" 
+              className="bg-primary hover:bg-primary/90" 
+              onClick={() => handleOpenTeamDialog()}
+              data-testid="button-create-team"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Novo Time
+            </Button>
           )}
         </div>
       </div>
@@ -368,15 +370,30 @@ export default function SquadTeams() {
                       </div>
                     </div>
                     {isAdmin && (
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => deleteTeamMutation.mutate(team.id)}
-                        disabled={deleteTeamMutation.isPending}
-                        data-testid={`button-delete-team-${team.id}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenTeamDialog(team)}
+                          data-testid={`button-edit-team-${team.id}`}
+                          className="border-primary/20 text-white hover:bg-primary/20"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            if (confirm("Tem certeza que deseja excluir este time?")) {
+                              deleteTeamMutation.mutate(team.id);
+                            }
+                          }}
+                          disabled={deleteTeamMutation.isPending}
+                          data-testid={`button-delete-team-${team.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </CardHeader>
@@ -417,6 +434,14 @@ export default function SquadTeams() {
                                 )}
                               </div>
                               <p className="text-sm text-gray-400">{player.position}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="outline" className={getRoleBadgeColor(player.teamRole || "jogador")}>
+                                  <span className="flex items-center gap-1">
+                                    {getRoleIcon(player.teamRole || "jogador")}
+                                    <span className="text-xs">{getRoleLabel(player.teamRole || "jogador")}</span>
+                                  </span>
+                                </Badge>
+                              </div>
                             </div>
                           </div>
                           {isAdmin && (
@@ -426,13 +451,18 @@ export default function SquadTeams() {
                                 variant="outline"
                                 onClick={() => handleOpenPlayerDialog(team, player)}
                                 data-testid={`button-edit-player-${player.id}`}
+                                className="border-primary/20 text-white hover:bg-primary/20"
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                onClick={() => deletePlayerMutation.mutate(player.id)}
+                                onClick={() => {
+                                  if (confirm("Tem certeza que deseja excluir este jogador?")) {
+                                    deletePlayerMutation.mutate(player.id);
+                                  }
+                                }}
                                 data-testid={`button-delete-player-${player.id}`}
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -448,6 +478,101 @@ export default function SquadTeams() {
             );
           })
         )}
+
+        {/* Dialog para Criar/Editar Time */}
+        <Dialog open={isTeamDialogOpen} onOpenChange={setIsTeamDialogOpen}>
+          <DialogContent className="bg-gray-900 text-white border-primary/20">
+            <DialogHeader>
+              <DialogTitle>{editingTeam ? "Editar Time" : "Criar Time de Categoria"}</DialogTitle>
+              <DialogDescription>
+                {editingTeam ? "Edite as informações do time" : "Adicione um novo time (Sub-17, Sub-20, Adulto, etc)"}
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...teamForm}>
+              <form onSubmit={teamForm.handleSubmit(onSubmitTeam)} className="space-y-4">
+                <FormField
+                  control={teamForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome do Time</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Ex: Sub-17"
+                          data-testid="input-team-name"
+                          className="bg-gray-800 border-primary/20 text-white"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={teamForm.control}
+                  name="abbreviation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sigla (Opcional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Ex: S17"
+                          data-testid="input-team-abbreviation"
+                          className="bg-gray-800 border-primary/20 text-white"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={teamForm.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Categoria</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Ex: Sub-15, Adulto, Feminino"
+                          data-testid="input-team-category"
+                          className="bg-gray-800 border-primary/20 text-white"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={teamForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Descrição / Informações (Opcional)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Informações adicionais sobre o time..."
+                          data-testid="input-team-description"
+                          className="bg-gray-800 border-primary/20 text-white"
+                          rows={3}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <input type="hidden" {...teamForm.register("clubId")} value={1} />
+                <DialogFooter>
+                  <Button type="submit" className="bg-primary hover:bg-primary/90" data-testid="button-submit-team">
+                    {editingTeam ? "Salvar Alterações" : "Criar Time"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
 
         {/* Dialog para Criar/Editar Jogador */}
         <Dialog open={isPlayerDialogOpen} onOpenChange={setIsPlayerDialogOpen}>
@@ -535,6 +660,50 @@ export default function SquadTeams() {
                         </SelectContent>
                       </Select>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={playerForm.control}
+                  name="teamRole"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cargo no Time</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value}
+                        disabled={!isPresidente}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="bg-gray-800 border-primary/20 text-white" data-testid="select-player-role">
+                            <SelectValue placeholder="Selecione o cargo" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="bg-gray-800 text-white border-primary/20">
+                          <SelectItem value="jogador">
+                            <div className="flex items-center gap-2">
+                              <User className="w-4 h-4 text-gray-400" />
+                              Jogador
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="capitao">
+                            <div className="flex items-center gap-2">
+                              <Crown className="w-4 h-4 text-yellow-500" />
+                              Capitão
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="diretor_time">
+                            <div className="flex items-center gap-2">
+                              <Shield className="w-4 h-4 text-blue-500" />
+                              Diretor do Time
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                      {!isPresidente && (
+                        <p className="text-xs text-gray-500">Apenas o Presidente pode atribuir cargos</p>
+                      )}
                     </FormItem>
                   )}
                 />

@@ -44,6 +44,7 @@ export const players = pgTable("players", {
   jerseyNumber: integer("jersey_number"),
   photo: text("photo"),
   status: text("status").notNull().default("active"),
+  teamRole: text("team_role").notNull().default("jogador"),
   goals: integer("goals").notNull().default(0),
   assists: integer("assists").notNull().default(0),
   yellowCards: integer("yellow_cards").notNull().default(0),
@@ -162,6 +163,7 @@ export const insertPlayerSchema = z.object({
   jerseyNumber: z.number().optional(),
   photo: z.string().optional(),
   status: z.enum(["active", "inactive"]).optional(),
+  teamRole: z.enum(["capitao", "diretor_time", "jogador"]).optional(),
 }).strict();
 
 export const insertGameSchema = z.object({
