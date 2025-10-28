@@ -24,19 +24,16 @@ export default function Chat() {
   const canAccessTecnicos = isAdmin || isTecnico;
   const canAccessDiretoria = isAdmin;
 
-  const { data: associations = [] } = useQuery<Team[]>({
-    queryKey: ["/api/teams"],
-  });
-
-  const associationId = associations[0]?.id || 1;
+  // Use default club ID = 1 (Campinho Conectado)
+  const clubId = 1;
 
   const { data: messages = [], refetch: refetchMessages } = useQuery<Message[]>({
-    queryKey: ["/api/chat", associationId, selectedChannel],
+    queryKey: ["/api/chat", clubId, selectedChannel],
     refetchInterval: 3000,
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (data: { content: string; channel: string; associationId: number }) =>
+    mutationFn: async (data: { content: string; channel: string; clubId: number }) =>
       apiRequest("/api/chat/send", "POST", data),
     onSuccess: () => {
       setMessage("");
@@ -61,7 +58,7 @@ export default function Chat() {
     sendMessageMutation.mutate({
       content: message,
       channel: selectedChannel,
-      associationId,
+      clubId,
     });
   };
 

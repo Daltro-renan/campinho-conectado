@@ -19,7 +19,7 @@ import BottomNav from "@/components/BottomNav";
 const squadTeamSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
   category: z.string().min(1, "Categoria é obrigatória"),
-  associationId: z.number(),
+  clubId: z.number(),
   coachId: z.number().optional(),
 });
 
@@ -35,9 +35,8 @@ export default function SquadTeams() {
   const isAdmin = user?.role === "presidente" || user?.role === "diretoria";
   const isTecnico = user?.role === "tecnico";
 
-  const { data: associations = [] } = useQuery<Team[]>({
-    queryKey: ["/api/teams"],
-  });
+  // Use default club ID = 1 (Campinho Conectado)
+  const clubId = 1;
 
   const { data: squadTeams = [], isLoading } = useQuery<SquadTeam[]>({
     queryKey: ["/api/squad-teams"],
@@ -118,7 +117,7 @@ export default function SquadTeams() {
     defaultValues: {
       name: "",
       category: "",
-      associationId: associations[0]?.id || 1,
+      clubId: 1,
     },
   });
 
@@ -192,33 +191,7 @@ export default function SquadTeams() {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="associationId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Associação</FormLabel>
-                          <Select
-                            value={field.value?.toString()}
-                            onValueChange={(value) => field.onChange(parseInt(value))}
-                          >
-                            <FormControl>
-                              <SelectTrigger data-testid="select-association" className="bg-gray-800 border-primary/20">
-                                <SelectValue placeholder="Selecione a associação" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {associations.map((assoc) => (
-                                <SelectItem key={assoc.id} value={assoc.id.toString()}>
-                                  {assoc.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <input type="hidden" {...form.register("clubId")} value={1} />
                     <DialogFooter>
                       <Button type="submit" className="bg-primary hover:bg-primary/90" data-testid="button-submit-team">
                         Criar Time
