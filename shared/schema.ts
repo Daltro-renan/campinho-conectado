@@ -168,7 +168,7 @@ export const insertGameSchema = z.object({
   clubId: z.number(),
   homeTeamId: z.number(),
   awayTeamId: z.number(),
-  gameDate: z.string(),
+  gameDate: z.string().transform((val) => new Date(val)),
   location: z.string().optional(),
 }).strict();
 
