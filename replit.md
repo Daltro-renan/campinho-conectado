@@ -8,6 +8,21 @@ The application was migrated from a Lovable/Supabase architecture to a self-host
 
 ## Recent Changes (October 28, 2025)
 
+**Comprehensive Team Management System:**
+- Expanded `teams` table with visual and location fields:
+  - `abbreviation` (sigla/short code for team)
+  - `colorPrimary` and `colorSecondary` (team colors in hex format)
+  - `city` and `state` (location data)
+  - `description` (team history/mission)
+  - `createdBy` (user ID who created the team)
+- New Team Management page (`/team`) with full CRUD capabilities:
+  - Visual team cards displaying logo, colors, location
+  - Modal form for creating/editing teams with color pickers
+  - URL-based logo upload support
+  - Admin-only permissions (presidente/diretoria) for team management
+- Backend secured with `requireAdmin` middleware for all team mutations
+- All new teams automatically associated with current club (clubId=1)
+
 **Four-Tier Role Hierarchy System:**
 - Expanded role system: `presidente`, `diretoria`, `tecnico`, and `jogador`
 - Admin roles (presidente and diretoria) have full CRUD access to all resources
