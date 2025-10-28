@@ -8,24 +8,44 @@ The application was migrated from a Lovable/Supabase architecture to a self-host
 
 ## Recent Changes (October 28, 2025)
 
-**Role-Based Hierarchy System:**
-- Implemented complete three-tier role system: `presidente`, `diretoria`, and `jogador`
-- Admin roles (presidente and diretoria) have full CRUD access to games, players, and payments
+**Four-Tier Role Hierarchy System:**
+- Expanded role system: `presidente`, `diretoria`, `tecnico`, and `jogador`
+- Admin roles (presidente and diretoria) have full CRUD access to all resources
+- Técnico role can manage their assigned squad teams and players
 - Regular users (jogador) have read-only access to most resources
-- JWT tokens now include user role for server-side authorization
+- JWT tokens include user role for server-side authorization
 
-**Payment Management System (Mensalidades):**
-- Created new `payments` table for tracking monthly player fees
-- Full CRUD API with admin-only access controls
-- Payment tracking includes: amount (in cents), due date, paid date, status, month/year, and notes
-- Status auto-calculated based on payment state (pending, paid, overdue)
-- Dedicated Payments page with filtering by status and player
+**Hierarchical Chat System:**
+- Three role-based channels: `geral`, `tecnicos`, and `diretoria`
+- Channel "diretoria": accessible only by presidente and diretoria
+- Channel "tecnicos": accessible by presidente, diretoria, and tecnico roles
+- Channel "geral": accessible by all authenticated users
+- Real-time messaging with auto-refresh every 3 seconds
+- Backend permission checks enforce channel access rules
+- Dedicated Chat page with tab-based interface
 
-**Enhanced Security:**
-- Created `requireAdmin` middleware for protecting admin-only routes
-- All mutation routes (create/delete games, players, payments) now require admin role
-- Frontend pages check user role and redirect unauthorized users
-- Payments page completely restricted to admin roles
+**Squad Team Management System:**
+- New `squadTeams` table for managing team categories (Sub-17, Sub-20, etc.)
+- Full CRUD operations with role-based permissions:
+  - Create/Delete teams: admin only (presidente/diretoria)
+  - Edit teams & manage players: admin or assigned técnico
+- Coach assignment system linking técnicos to teams
+- Player roster management (add/remove players from teams)
+- Dedicated SquadTeams page with team listing and player management dialogs
+
+**Enhanced Payment Management:**
+- Added `paymentMethod` field to payments table
+- Payment methods supported: PIX, Credit Card, Debit Card, Cash
+- Controlled Select component ensures proper form submission
+- Payment creation includes method selection with validation
+- Full payment tracking: amount, due date, paid date, status, month/year, method, notes
+
+**Security Enhancements:**
+- `requireAdmin` middleware protects admin-only routes
+- `requireRole` helper for flexible role checking in route handlers
+- All mutation routes enforce proper role-based authorization
+- Frontend pages verify user role and redirect unauthorized access
+- Payments and SquadTeams pages restricted to appropriate roles
 
 ## User Preferences
 
@@ -72,24 +92,30 @@ Preferred communication style: Simple, everyday language.
 - bcryptjs for password hashing (10 rounds)
 - `authenticateToken` middleware for verifying JWT on protected routes
 - `requireAdmin` middleware for restricting admin-only operations
+- `requireRole` helper for flexible permission checking
 - Token stored in localStorage on client, sent via Authorization header
-- Three-tier role system: presidente (admin), diretoria (admin), jogador (regular user)
+- Four-tier role system: presidente (admin), diretoria (admin), tecnico (team manager), jogador (regular user)
 
 **Database Layer:**
 - Drizzle ORM for type-safe database operations
 - PostgreSQL schema with the following tables:
-  - `users`: User accounts with email, password hash, role (presidente/diretoria/jogador), avatar
+  - `users`: User accounts with email, password hash, role (presidente/diretoria/tecnico/jogador), avatar
   - `teams`: Team information including stats (wins, draws, losses, goals)
   - `players`: Player profiles linked to users and teams with statistics
   - `games`: Match scheduling with home/away teams, scores, dates, venues
   - `news`: News articles with title, content, author, published status
-  - `payments`: Monthly fee tracking with playerId, amount, dueDate, paidDate, status, month, year, notes
+  - `payments`: Monthly fee tracking with playerId, amount, dueDate, paidDate, paymentMethod, status, month, year, notes
+  - `messages`: Chat messages with associationId, authorId, channel (geral/tecnicos/diretoria), content, timestamp
+  - `squadTeams`: Team categories with name, category, associationId, coachId, playerIds array, createdBy
 
 **API Design:**
 - RESTful endpoints under `/api` prefix
 - Authentication endpoints: `/api/auth/register`, `/api/auth/login`, `/api/auth/me`
-- Resource endpoints for teams, players, games, news, and payments
-- Admin-only endpoints: POST/DELETE games, POST/DELETE players, all payment operations
+- Resource endpoints for teams, players, games, news, payments, chat, and squadTeams
+- Admin-only endpoints: POST/DELETE games, POST/DELETE players, all payment operations, POST/DELETE squadTeams
+- Role-based endpoints: 
+  - Chat channels enforce role restrictions (diretoria, tecnicos, geral)
+  - SquadTeams allow técnicos to manage their assigned teams
 - Zod schemas for request validation (defined in shared/schema.ts)
 - Shared TypeScript types between client and server
 - All insert schemas use `.strict()` for enhanced security
@@ -98,7 +124,7 @@ Preferred communication style: Simple, everyday language.
 
 **Monorepo Structure:**
 - `client/`: Frontend React application
-  - `src/pages/`: Route components (Home, Auth, Games, Team, Profile, Payments)
+  - `src/pages/`: Route components (Home, Auth, Games, Team, Profile, Payments, Chat, SquadTeams)
   - `src/components/`: Reusable components including BottomNav
   - `src/components/ui/`: shadcn component library
   - `src/lib/`: Utilities (auth context with role checking, query client, utils)
