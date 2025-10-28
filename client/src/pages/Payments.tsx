@@ -24,6 +24,7 @@ export default function Payments() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedPlayer, setSelectedPlayer] = useState<string>("all");
+  const [paymentMethod, setPaymentMethod] = useState<string>("");
 
   const isAdmin = user?.role === "presidente" || user?.role === "diretoria";
 
@@ -108,8 +109,10 @@ export default function Payments() {
       month,
       year,
       status: "pending",
+      paymentMethod: paymentMethod || undefined,
       notes: formData.get("notes") as string || undefined,
     });
+    setPaymentMethod("");
   };
 
   const markAsPaid = (payment: Payment) => {
@@ -230,6 +233,21 @@ export default function Payments() {
                       className="bg-gray-700 border-gray-600"
                       data-testid="input-amount"
                     />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="paymentMethod">Método de Pagamento</Label>
+                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                      <SelectTrigger className="bg-gray-700 border-gray-600" data-testid="select-payment-method">
+                        <SelectValue placeholder="Selecione o método" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-800 border-gray-700">
+                        <SelectItem value="pix">PIX</SelectItem>
+                        <SelectItem value="credit_card">Cartão de Crédito</SelectItem>
+                        <SelectItem value="debit_card">Cartão de Débito</SelectItem>
+                        <SelectItem value="cash">Dinheiro</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="grid gap-2">

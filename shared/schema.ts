@@ -98,10 +98,13 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+  fullName: z.string().optional(),
+  role: z.enum(["presidente", "diretoria", "tecnico", "jogador", "player"]).optional(),
+  avatar: z.string().optional(),
+}).strict();
 
 export const insertTeamSchema = z.object({
   name: z.string().min(1),

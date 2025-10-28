@@ -408,6 +408,209 @@ export function registerRoutes(app: Express) {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Squad Team routes (Times de Categoria)
+  app.get("/api/squad-teams", authenticateToken, async (req, res) => {
+    try {
+      const associationId = req.query.associationId as string | undefined;
+      
+      if (associationId) {
+        const squadTeams = await storage.getSquadTeamsByAssociation(parseInt(associationId));
+        res.json(squadTeams);
+      } else {
+        const squadTeams = await storage.getSquadTeams();
+        res.json(squadTeams);
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/squad-teams/:id", authenticateToken, async (req, res) => {
+    try {
+      const squadTeam = await storage.getSquadTeamById(parseInt(req.params.id));
+      if (!squadTeam) {
+        return res.status(404).json({ error: "Squad team not found" });
+      }
+      res.json(squadTeam);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/squad-teams", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const { insertSquadTeamSchema } = await import("@shared/schema");
+      const validatedData = insertSquadTeamSchema.parse(req.body);
+      const squadTeam = await storage.createSquadTeam(validatedData);
+      res.json(squadTeam);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/squad-teams/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const userRole = req.user.role;
+      const isAdmin = userRole === "presidente" || userRole === "diretoria";
+      
+      const squadTeam = await storage.getSquadTeamById(parseInt(req.params.id));
+      if (!squadTeam) {
+        return res.status(404).json({ error: "Squad team not found" });
+      }
+
+      const isTecnico = userRole === "tecnico" && squadTeam.coachId === req.user.id;
+      
+      if (!isAdmin && !isTecnico) {
+        return res.status(403).json({ error: "Only admin or assigned coach can update this team" });
+      }
+
+      const updatedTeam = await storage.updateSquadTeam(parseInt(req.params.id), req.body);
+      res.json(updatedTeam);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/squad-teams/:id", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteSquadTeam(parseInt(req.params.id));
+      res.json({ message: "Squad team deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/squad-teams/:id/players", authenticateToken, async (req, res) => {
+    try {
+      const players = await storage.getPlayersBySquadTeam(parseInt(req.params.id));
+      res.json(players);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/squad-teams/:id/players/:playerId", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const userRole = req.user.role;
+      const isAdmin = userRole === "presidente" || userRole === "diretoria";
+      
+      const squadTeam = await storage.getSquadTeamById(parseInt(req.params.id));
+      if (!squadTeam) {
+        return res.status(404).json({ error: "Squad team not found" });
+      }
+
+      const isTecnico = userRole === "tecnico" && squadTeam.coachId === req.user.id;
+      
+      if (!isAdmin && !isTecnico) {
+        return res.status(403).json({ error: "Only admin or assigned coach can manage players" });
+      }
+
+      const player = await storage.addPlayerToSquadTeam(parseInt(req.params.id), parseInt(req.params.playerId));
+      res.json(player);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/squad-teams/:id/players/:playerId", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const userRole = req.user.role;
+      const isAdmin = userRole === "presidente" || userRole === "diretoria";
+      
+      const squadTeam = await storage.getSquadTeamById(parseInt(req.params.id));
+      if (!squadTeam) {
+        return res.status(404).json({ error: "Squad team not found" });
+      }
+
+      const isTecnico = userRole === "tecnico" && squadTeam.coachId === req.user.id;
+      
+      if (!isAdmin && !isTecnico) {
+        return res.status(403).json({ error: "Only admin or assigned coach can manage players" });
+      }
+
+      await storage.removePlayerFromSquadTeam(parseInt(req.params.playerId));
+      res.json({ message: "Player removed from squad team successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Chat routes (Sistema de mensagens hierárquico)
+  app.get("/api/chat/:associationId/:channel", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { associationId, channel } = req.params;
+      const userRole = req.user.role;
+
+      if (channel === "diretoria" && userRole !== "presidente" && userRole !== "diretoria") {
+        return res.status(403).json({ error: "Only presidente and diretoria can access this channel" });
+      }
+
+      if (channel === "tecnicos" && userRole !== "presidente" && userRole !== "diretoria" && userRole !== "tecnico") {
+        return res.status(403).json({ error: "Only presidente, diretoria and tecnico can access this channel" });
+      }
+
+      const messages = await storage.getMessages(parseInt(associationId), channel);
+      res.json(messages);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/chat/send", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { insertMessageSchema } = await import("@shared/schema");
+      const validatedData = insertMessageSchema.parse({
+        ...req.body,
+        authorId: req.user.id,
+      });
+
+      const userRole = req.user.role;
+      const channel = validatedData.channel;
+
+      if (channel === "diretoria" && userRole !== "presidente" && userRole !== "diretoria") {
+        return res.status(403).json({ error: "Only presidente and diretoria can send messages to this channel" });
+      }
+
+      if (channel === "tecnicos" && userRole !== "presidente" && userRole !== "diretoria" && userRole !== "tecnico") {
+        return res.status(403).json({ error: "Only presidente, diretoria and tecnico can send messages to this channel" });
+      }
+
+      const message = await storage.createMessage(validatedData);
+      res.json(message);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/chat/:id", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteMessage(parseInt(req.params.id));
+      res.json({ message: "Message deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 }
 
 // Extend Express Request type
