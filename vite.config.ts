@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
+import tailwindcss from "tailwindcss";
+import autoprefixer from "autoprefixer";
 
 export default defineConfig(({ mode }) => ({
   root: path.resolve(__dirname, "client"),
@@ -15,6 +17,14 @@ export default defineConfig(({ mode }) => ({
     host: "0.0.0.0",
     port: 5000,
     strictPort: true,
+  },
+  css: {
+    postcss: {
+      plugins: [
+        tailwindcss(),
+        autoprefixer(),
+      ],
+    },
   },
   plugins: [
     react(),
