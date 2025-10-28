@@ -1,0 +1,197 @@
+Ele deve permitir login com Google, gestão de perfis, histórico de pagamentos e hierarquia interna em clubes.
+
+O sistema é voltado para associações e clubes de futebol, permitindo que um mesmo usuário participe de vários clubes com cargos diferentes (presidente, técnico, jogador etc.), mas seja admin global até entrar em algum clube.
+
+⚙️ REQUISITOS DO SISTEMA
+🧩 1. Autenticação
+
+Login com Google (Firebase Auth ou Google Identity Services).
+
+Todo usuário novo começa com cargo admin (nível global).
+
+Salvar dados do usuário: uid, nome, email, foto, cargo, clubes[].
+
+Logout e persistência automática de sessão (Firebase ou JWT).
+
+Backend Express valida o token Google e gera JWT local.
+
+👤 2. Página de Perfil (Configurações da Conta)
+
+Rota: /perfil
+
+Contém:
+
+Foto e nome do usuário (editáveis)
+
+Cargo global (admin ou membro)
+
+Lista dos clubes que participa (com cargo em cada um)
+
+Botão para alterar senha, sair da conta e excluir perfil
+
+Funções:
+
+editarPerfil() → Atualiza nome/foto
+
+atualizarCargo() → Altera cargo dentro de um clube
+
+excluirConta() → Remove usuário do sistema
+
+💳 3. Página "Meus Pagamentos"
+
+Rota: /pagamentos
+
+Funções:
+
+Exibir lista de pagamentos (data, valor, status, método)
+
+Mostrar saldo total pago e pendente
+
+Permitir gerar um novo pagamento (ex: mensalidade)
+
+Conectar com Stripe ou Firebase Firestore para registro
+
+Funções principais:
+
+listarPagamentos(uid)
+
+realizarPagamento(uid, valor)
+
+exibirHistorico(uid)
+
+⚽ 4. Hierarquia interna (somente dentro do clube)
+
+Hierarquia local a cada clube:
+
+Presidente
+
+Diretor
+
+Técnico
+
+Jogador
+
+Funções:
+
+O Presidente pode excluir qualquer membro.
+
+O Diretor pode adicionar ou remover jogadores.
+
+O Técnico pode editar escalação e chat do time.
+
+O Jogador apenas acessa e interage no chat.
+
+Cada clube tem sua própria tabela (ou coleção) de membros, cargos e permissões.
+O cargo global (admin) não interfere dentro do clube — lá o usuário tem papel local.
+
+💬 5. Chat interno (por clube)
+
+Rota: /clube/:id/chat
+
+Sistema de chat em tempo real entre membros do mesmo clube.
+
+Armazena mensagens por clube.
+
+Mostra o nome e cargo de quem enviou.
+
+Permitir envio de texto, emoji e imagem.
+
+🧠 6. Estrutura do projeto
+
+Frontend (React/Vite):
+
+client/
+ ├── src/
+ │   ├── components/
+ │   │   ├── GoogleLoginButton.jsx
+ │   │   ├── ProfileSettings.jsx
+ │   │   └── PaymentsPage.jsx
+ │   ├── pages/
+ │   │   ├── Home.jsx
+ │   │   ├── Clube.jsx
+ │   │   └── Chat.jsx
+ │   ├── services/
+ │   │   ├── authService.js
+ │   │   └── paymentService.js
+ │   ├── firebaseConfig.js
+ │   └── main.jsx
+
+
+Backend (Node.js + Express):
+
+server/
+ ├── routes/
+ │   ├── authRoutes.js
+ │   ├── userRoutes.js
+ │   └── paymentRoutes.js
+ ├── controllers/
+ │   ├── authController.js
+ │   ├── userController.js
+ │   └── paymentController.js
+ ├── models/
+ │   ├── User.js
+ │   └── Payment.js
+ └── index.js
+
+🔐 7. Banco de Dados
+
+Firebase Firestore ou MongoDB Atlas
+
+Coleções:
+
+users: { uid, nome, email, foto, cargo, clubes[] }
+
+clubs: { nome, presidente, membros[] }
+
+payments: { userId, valor, data, status }
+
+🚀 8. Funcionalidades essenciais a gerar no código
+🟢 GoogleLoginButton.jsx
+
+Autentica via Google
+
+Cria o usuário no banco (cargo = admin)
+
+Armazena dados no localStorage
+
+Exibe nome e imagem após login
+
+🟢 ProfileSettings.jsx
+
+Edita nome/foto
+
+Mostra clubes e cargos
+
+Botão para excluir conta
+
+🟢 PaymentsPage.jsx
+
+Mostra lista de pagamentos
+
+Permite gerar novo pagamento (simulado)
+
+Exibe total pago
+
+🟢 authController.js
+
+Verifica token Google
+
+Cria usuário se novo
+
+Retorna JWT e dados
+
+🟢 paymentController.js
+
+Busca e registra pagamentos
+
+Mock para histórico no início
+
+💬 9. Instruções para testar
+
+Login com Google → cria usuário admin.
+
+Ir em Perfil → editar informações.
+
+Ir em Pagamentos → ver histórico e simular pagamento.
+
+Entrar em Clube → ver cargos locais e chat interno.
