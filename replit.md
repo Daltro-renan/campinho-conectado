@@ -75,3 +75,18 @@ Required: `DATABASE_URL`, `JWT_SECRET`, `NODE_ENV`.
 - Next game calculation filters future games and sorts by date to show the closest upcoming match
 - Team names and abbreviations displayed from squadTeams
 - Full integration: Create teams in Times tab → Create games in Games tab → See next game on Dashboard
+
+**Comprehensive Settings System:**
+- Created ThemeProvider using React Context API for global light/dark theme management
+- Theme persists in localStorage and applies to entire application
+- Added `updateUser` endpoint (PUT /api/users/:id) in backend with proper authentication
+- Added `refreshUser` function to AuthContext to update user state after profile changes
+- Complete Profile page redesign with modern card-based layout
+
+**Profile Settings Features:**
+- **Change Name:** Form dialog with validation to update user's display name
+- **Change Photo:** Form dialog with URL input and live avatar preview
+- **User Information:** Read-only view of personal data (name, email, role, club, member since)
+- **Theme Toggle:** Switch between light and dark mode with visual icon change
+- All settings organized in a modal with clear sections
+- Real-time updates reflect immediately across the application after saving
