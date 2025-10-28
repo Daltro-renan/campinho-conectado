@@ -1,14 +1,19 @@
-import { Home, Calendar, Users, User } from "lucide-react";
+import { Home, Calendar, Users, User, DollarSign } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 const BottomNav = () => {
   const [location] = useLocation();
+  const { user } = useAuth();
+  
+  const isAdmin = user?.role === "presidente" || user?.role === "diretoria";
   
   const navItems = [
     { path: "/", icon: Home, label: "Início" },
     { path: "/games", icon: Calendar, label: "Jogos" },
     { path: "/team", icon: Users, label: "Time" },
+    ...(isAdmin ? [{ path: "/payments", icon: DollarSign, label: "Mensalidades" }] : []),
     { path: "/profile", icon: User, label: "Perfil" },
   ];
   

@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Games from "./pages/Games";
 import Team from "./pages/Team";
 import Profile from "./pages/Profile";
+import Payments from "./pages/Payments";
 import NotFound from "./pages/NotFound";
 
 const App = () => (
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/auth" component={Auth} />
           <Route path="/games" component={Games} />
           <Route path="/team" component={Team} />
+          <Route path="/payments" component={Payments} />
           <Route path="/profile" component={Profile} />
           <Route component={NotFound} />
         </Switch>

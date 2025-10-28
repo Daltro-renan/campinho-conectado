@@ -6,7 +6,8 @@ import {
   insertTeamSchema,
   insertPlayerSchema,
   insertGameSchema,
-  insertNewsSchema
+  insertNewsSchema,
+  insertPaymentSchema
 } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -34,6 +35,20 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
     req.user = user;
     next();
   });
+}
+
+// Middleware to check if user is admin (presidente or diretoria)
+export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+
+  const userRole = req.user.role;
+  if (userRole !== "presidente" && userRole !== "diretoria") {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+
+  next();
 }
 
 export function registerRoutes(app: Express) {
@@ -79,7 +94,7 @@ export function registerRoutes(app: Express) {
       }
 
       const token = jwt.sign(
-        { id: user.id, email: user.email },
+        { id: user.id, email: user.email, role: user.role },
         JWT_SECRET,
         { expiresIn: "7d" }
       );
@@ -186,7 +201,7 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  app.post("/api/players", authenticateToken, async (req, res) => {
+  app.post("/api/players", authenticateToken, requireAdmin, async (req, res) => {
     try {
       const validatedData = insertPlayerSchema.parse(req.body);
       const player = await storage.createPlayer(validatedData);
@@ -209,7 +224,7 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  app.delete("/api/players/:id", authenticateToken, async (req, res) => {
+  app.delete("/api/players/:id", authenticateToken, requireAdmin, async (req, res) => {
     try {
       await storage.deletePlayer(parseInt(req.params.id));
       res.json({ message: "Player deleted successfully" });
@@ -242,7 +257,7 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  app.post("/api/games", authenticateToken, async (req, res) => {
+  app.post("/api/games", authenticateToken, requireAdmin, async (req, res) => {
     try {
       const validatedData = insertGameSchema.parse(req.body);
       const game = await storage.createGame(validatedData);
@@ -265,7 +280,7 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  app.delete("/api/games/:id", authenticateToken, async (req, res) => {
+  app.delete("/api/games/:id", authenticateToken, requireAdmin, async (req, res) => {
     try {
       await storage.deleteGame(parseInt(req.params.id));
       res.json({ message: "Game deleted successfully" });
@@ -329,6 +344,70 @@ export function registerRoutes(app: Express) {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Payment routes (admin only)
+  app.get("/api/payments", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const playerId = req.query.playerId as string | undefined;
+      
+      let paymentsData;
+      if (playerId) {
+        paymentsData = await storage.getPaymentsByPlayer(parseInt(playerId));
+      } else if (status) {
+        paymentsData = await storage.getPaymentsByStatus(status);
+      } else {
+        paymentsData = await storage.getPayments();
+      }
+      res.json(paymentsData);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/payments/:id", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const payment = await storage.getPaymentById(parseInt(req.params.id));
+      if (!payment) {
+        return res.status(404).json({ error: "Payment not found" });
+      }
+      res.json(payment);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/payments", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const validatedData = insertPaymentSchema.parse(req.body);
+      const payment = await storage.createPayment(validatedData);
+      res.json(payment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/payments/:id", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const validatedData = insertPaymentSchema.partial().parse(req.body);
+      const payment = await storage.updatePayment(parseInt(req.params.id), validatedData);
+      if (!payment) {
+        return res.status(404).json({ error: "Payment not found" });
+      }
+      res.json(payment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/payments/:id", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      await storage.deletePayment(parseInt(req.params.id));
+      res.json({ message: "Payment deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 }
 
 // Extend Express Request type
@@ -338,6 +417,7 @@ declare global {
       user?: {
         id: number;
         email: string;
+        role?: string;
       };
     }
   }

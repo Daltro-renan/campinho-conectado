@@ -3,11 +3,12 @@ import type {
   Team, InsertTeam,
   Player, InsertPlayer,
   Game, InsertGame,
-  News, InsertNews
+  News, InsertNews,
+  Payment, InsertPayment
 } from "@shared/schema";
 import { db } from "./db";
-import { users, teams, players, games, news } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { users, teams, players, games, news, payments } from "@shared/schema";
+import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
   createUser(user: InsertUser): Promise<PublicUser>;
@@ -40,6 +41,14 @@ export interface IStorage {
   createNews(newsItem: Partial<InsertNews>): Promise<News>;
   updateNews(id: number, newsItem: Partial<News>): Promise<News | undefined>;
   deleteNews(id: number): Promise<void>;
+  
+  getPayments(): Promise<Payment[]>;
+  getPaymentsByPlayer(playerId: number): Promise<Payment[]>;
+  getPaymentsByStatus(status: string): Promise<Payment[]>;
+  getPaymentById(id: number): Promise<Payment | undefined>;
+  createPayment(payment: Partial<InsertPayment>): Promise<Payment>;
+  updatePayment(id: number, payment: Partial<Payment>): Promise<Payment | undefined>;
+  deletePayment(id: number): Promise<void>;
 }
 
 class DbStorage implements IStorage {
@@ -168,6 +177,37 @@ class DbStorage implements IStorage {
 
   async deleteNews(id: number): Promise<void> {
     await db.delete(news).where(eq(news.id, id));
+  }
+
+  async getPayments(): Promise<Payment[]> {
+    return await db.select().from(payments).orderBy(desc(payments.dueDate));
+  }
+
+  async getPaymentsByPlayer(playerId: number): Promise<Payment[]> {
+    return await db.select().from(payments).where(eq(payments.playerId, playerId)).orderBy(desc(payments.dueDate));
+  }
+
+  async getPaymentsByStatus(status: string): Promise<Payment[]> {
+    return await db.select().from(payments).where(eq(payments.status, status)).orderBy(desc(payments.dueDate));
+  }
+
+  async getPaymentById(id: number): Promise<Payment | undefined> {
+    const [payment] = await db.select().from(payments).where(eq(payments.id, id));
+    return payment;
+  }
+
+  async createPayment(paymentData: Partial<InsertPayment>): Promise<Payment> {
+    const [payment] = await db.insert(payments).values(paymentData as any).returning();
+    return payment;
+  }
+
+  async updatePayment(id: number, paymentData: Partial<Payment>): Promise<Payment | undefined> {
+    const [payment] = await db.update(payments).set(paymentData).where(eq(payments.id, id)).returning();
+    return payment;
+  }
+
+  async deletePayment(id: number): Promise<void> {
+    await db.delete(payments).where(eq(payments.id, id));
   }
 }
 

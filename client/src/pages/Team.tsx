@@ -1,17 +1,27 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { Trophy, Target, Award, Users as UsersIcon } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Trophy, Target, Award, Users as UsersIcon, Plus, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Player, Team } from "@shared/schema";
 
 const TeamPage = () => {
   const [, setLocation] = useLocation();
   const { user, isLoading } = useAuth();
+  const { toast } = useToast();
+  const [isAddOpen, setIsAddOpen] = useState(false);
+
+  const isAdmin = user?.role === "presidente" || user?.role === "diretoria";
 
   const { data: players = [], isLoading: playersLoading } = useQuery<Player[]>({
     queryKey: ["/api/players"],
@@ -22,6 +32,48 @@ const TeamPage = () => {
     queryKey: ["/api/teams"],
     enabled: !!user,
   });
+
+  const createPlayerMutation = useMutation({
+    mutationFn: async (data: any) => apiRequest("/api/players", "POST", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/players"] });
+      setIsAddOpen(false);
+      toast({
+        title: "Jogador adicionado!",
+        description: "O jogador foi cadastrado com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao adicionar jogador",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deletePlayerMutation = useMutation({
+    mutationFn: async (id: number) => apiRequest(`/api/players/${id}`, "DELETE"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/players"] });
+      toast({
+        title: "Jogador removido",
+        description: "O jogador foi excluído com sucesso.",
+      });
+    },
+  });
+
+  const handleCreatePlayer = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    createPlayerMutation.mutate({
+      name: formData.get("name") as string,
+      position: formData.get("position") as string,
+      jerseyNumber: parseInt(formData.get("jerseyNumber") as string) || undefined,
+      teamId: teams[0]?.id || undefined,
+    });
+  };
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -61,11 +113,77 @@ const TeamPage = () => {
     <div className="min-h-screen bg-background pb-20">
       <div className="bg-gradient-to-br from-secondary to-black p-6 text-primary-foreground shadow-lg">
         <div className="max-w-lg mx-auto">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <UsersIcon className="w-7 h-7 text-primary" />
-            {mainTeam?.name || "Nosso Time"}
-          </h1>
-          <p className="text-gray-300 mt-1">Estatísticas e jogadores</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <UsersIcon className="w-7 h-7 text-primary" />
+                {mainTeam?.name || "Nosso Time"}
+              </h1>
+              <p className="text-gray-300 mt-1">Estatísticas e jogadores</p>
+            </div>
+            
+            {isAdmin && (
+              <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-primary hover:bg-primary/90" data-testid="button-add-player">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Jogador
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-gray-800 text-white border-gray-700">
+                  <form onSubmit={handleCreatePlayer}>
+                    <DialogHeader>
+                      <DialogTitle>Adicionar Jogador</DialogTitle>
+                      <DialogDescription className="text-gray-400">
+                        Cadastre um novo jogador no time
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="name">Nome</Label>
+                        <Input
+                          type="text"
+                          name="name"
+                          required
+                          className="bg-gray-700 border-gray-600"
+                          data-testid="input-player-name"
+                        />
+                      </div>
+                      
+                      <div className="grid gap-2">
+                        <Label htmlFor="position">Posição</Label>
+                        <Input
+                          type="text"
+                          name="position"
+                          required
+                          placeholder="Ex: Atacante, Goleiro, Zagueiro"
+                          className="bg-gray-700 border-gray-600"
+                          data-testid="input-position"
+                        />
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="jerseyNumber">Número da Camisa</Label>
+                        <Input
+                          type="number"
+                          name="jerseyNumber"
+                          min="1"
+                          max="99"
+                          className="bg-gray-700 border-gray-600"
+                          data-testid="input-jersey"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="submit" className="bg-primary hover:bg-primary/90" data-testid="button-submit-player">
+                        Adicionar Jogador
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
         </div>
       </div>
 
@@ -164,6 +282,18 @@ const TeamPage = () => {
                           </div>
                         </div>
                       </div>
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => deletePlayerMutation.mutate(player.id)}
+                          disabled={deletePlayerMutation.isPending}
+                          data-testid={`button-delete-player-${player.id}`}
+                          className="ml-2"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

@@ -64,6 +64,19 @@ export const news = pgTable("news", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const payments = pgTable("payments", {
+  id: serial("id").primaryKey(),
+  playerId: integer("player_id").references(() => players.id).notNull(),
+  amount: integer("amount").notNull(),
+  dueDate: date("due_date").notNull(),
+  paidDate: date("paid_date"),
+  status: text("status").notNull().default("pending"),
+  month: integer("month").notNull(),
+  year: integer("year").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -99,6 +112,17 @@ export const insertNewsSchema = z.object({
   authorId: z.number().optional(),
 }).strict();
 
+export const insertPaymentSchema = z.object({
+  playerId: z.number(),
+  amount: z.number(),
+  dueDate: z.string(),
+  paidDate: z.string().optional(),
+  status: z.enum(["pending", "paid", "overdue"]).optional(),
+  month: z.number().min(1).max(12),
+  year: z.number(),
+  notes: z.string().optional(),
+}).strict();
+
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
@@ -120,3 +144,6 @@ export type InsertGame = z.infer<typeof insertGameSchema>;
 
 export type News = typeof news.$inferSelect;
 export type InsertNews = z.infer<typeof insertNewsSchema>;
+
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
