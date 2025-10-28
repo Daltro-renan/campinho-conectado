@@ -191,7 +191,7 @@ const Home = () => {
           {/* Card 2: Time Principal */}
           <Card 
             className="cursor-pointer hover:border-primary/50 transition-all duration-200 bg-gray-900/50 border-primary/20"
-            onClick={() => setLocation("/team")}
+            onClick={() => setLocation("/squad-teams")}
             data-testid="card-main-team"
           >
             <CardHeader className="pb-3">
