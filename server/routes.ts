@@ -186,9 +186,17 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  app.post("/api/teams", authenticateToken, async (req, res) => {
+  app.post("/api/teams", authenticateToken, requireAdmin, async (req, res) => {
     try {
-      const validatedData = insertTeamSchema.parse(req.body);
+      if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const validatedData = insertTeamSchema.parse({
+        ...req.body,
+        clubId: req.body.clubId || 1, // Default club
+        createdBy: req.user.id,
+      });
       const team = await storage.createTeam(validatedData);
       res.json(team);
     } catch (error: any) {
@@ -196,7 +204,7 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  app.put("/api/teams/:id", authenticateToken, async (req, res) => {
+  app.put("/api/teams/:id", authenticateToken, requireAdmin, async (req, res) => {
     try {
       const validatedData = insertTeamSchema.partial().parse(req.body);
       const team = await storage.updateTeam(parseInt(req.params.id), validatedData);
@@ -209,7 +217,7 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  app.delete("/api/teams/:id", authenticateToken, async (req, res) => {
+  app.delete("/api/teams/:id", authenticateToken, requireAdmin, async (req, res) => {
     try {
       await storage.deleteTeam(parseInt(req.params.id));
       res.json({ message: "Team deleted successfully" });
