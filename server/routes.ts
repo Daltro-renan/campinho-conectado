@@ -105,7 +105,10 @@ export function registerRoutes(app: Express) {
       const hashedPassword = await bcrypt.hash(userData.password, 10);
       const userWithHashedPassword = {
         ...userData,
-        password: hashedPassword
+        password: hashedPassword,
+        // All new users are admin with presidente role by default
+        role: "presidente",
+        globalRole: "admin"
       };
 
       const user = await storage.createUser(userWithHashedPassword);
