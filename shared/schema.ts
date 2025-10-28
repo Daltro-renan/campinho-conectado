@@ -8,6 +8,7 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   fullName: text("full_name"),
   role: text("role").notNull().default("player"),
+  globalRole: text("global_role").notNull().default("member"),
   avatar: text("avatar"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -98,11 +99,31 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const clubs = pgTable("clubs", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  logo: text("logo"),
+  foundedDate: date("founded_date"),
+  colors: text("colors"),
+  createdBy: integer("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const memberships = pgTable("memberships", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  clubId: integer("club_id").references(() => clubs.id).notNull(),
+  role: text("role").notNull().default("jogador"),
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   fullName: z.string().optional(),
   role: z.enum(["presidente", "diretoria", "tecnico", "jogador", "player"]).optional(),
+  globalRole: z.enum(["admin", "member"]).optional(),
   avatar: z.string().optional(),
 }).strict();
 
@@ -164,6 +185,21 @@ export const insertMessageSchema = z.object({
   content: z.string().min(1).max(1000),
 }).strict();
 
+export const insertClubSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  logo: z.string().optional(),
+  foundedDate: z.string().optional(),
+  colors: z.string().optional(),
+  createdBy: z.number(),
+}).strict();
+
+export const insertMembershipSchema = z.object({
+  userId: z.number(),
+  clubId: z.number(),
+  role: z.enum(["presidente", "diretoria", "tecnico", "jogador"]).optional(),
+}).strict();
+
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
@@ -194,3 +230,9 @@ export type InsertSquadTeam = z.infer<typeof insertSquadTeamSchema>;
 
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
+
+export type Club = typeof clubs.$inferSelect;
+export type InsertClub = z.infer<typeof insertClubSchema>;
+
+export type Membership = typeof memberships.$inferSelect;
+export type InsertMembership = z.infer<typeof insertMembershipSchema>;
