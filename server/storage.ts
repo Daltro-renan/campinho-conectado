@@ -55,7 +55,7 @@ export interface IStorage {
   deletePayment(id: number): Promise<void>;
   
   getSquadTeams(): Promise<SquadTeam[]>;
-  getSquadTeamsByAssociation(associationId: number): Promise<SquadTeam[]>;
+  getSquadTeamsByClub(clubId: number): Promise<SquadTeam[]>;
   getSquadTeamById(id: number): Promise<SquadTeam | undefined>;
   createSquadTeam(squadTeam: Partial<InsertSquadTeam>): Promise<SquadTeam>;
   updateSquadTeam(id: number, squadTeam: Partial<SquadTeam>): Promise<SquadTeam | undefined>;
@@ -64,7 +64,7 @@ export interface IStorage {
   removePlayerFromSquadTeam(playerId: number): Promise<void>;
   getPlayersBySquadTeam(squadTeamId: number): Promise<Player[]>;
   
-  getMessages(associationId: number, channel: string): Promise<Message[]>;
+  getMessages(clubId: number, channel: string): Promise<Message[]>;
   getMessageById(id: number): Promise<Message | undefined>;
   createMessage(message: Partial<InsertMessage>): Promise<Message>;
   deleteMessage(id: number): Promise<void>;
@@ -247,8 +247,8 @@ class DbStorage implements IStorage {
     return await db.select().from(squadTeams).orderBy(desc(squadTeams.createdAt));
   }
 
-  async getSquadTeamsByAssociation(associationId: number): Promise<SquadTeam[]> {
-    return await db.select().from(squadTeams).where(eq(squadTeams.associationId, associationId));
+  async getSquadTeamsByClub(clubId: number): Promise<SquadTeam[]> {
+    return await db.select().from(squadTeams).where(eq(squadTeams.clubId, clubId));
   }
 
   async getSquadTeamById(id: number): Promise<SquadTeam | undefined> {
@@ -283,10 +283,10 @@ class DbStorage implements IStorage {
     return await db.select().from(players).where(eq(players.squadTeamId, squadTeamId));
   }
 
-  async getMessages(associationId: number, channel: string): Promise<Message[]> {
+  async getMessages(clubId: number, channel: string): Promise<Message[]> {
     return await db.select()
       .from(messages)
-      .where(and(eq(messages.associationId, associationId), eq(messages.channel, channel)))
+      .where(and(eq(messages.clubId, clubId), eq(messages.channel, channel)))
       .orderBy(desc(messages.createdAt))
       .limit(100);
   }

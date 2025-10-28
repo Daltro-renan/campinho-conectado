@@ -412,10 +412,10 @@ export function registerRoutes(app: Express) {
   // Squad Team routes (Times de Categoria)
   app.get("/api/squad-teams", authenticateToken, async (req, res) => {
     try {
-      const associationId = req.query.associationId as string | undefined;
+      const clubId = req.query.clubId as string | undefined;
       
-      if (associationId) {
-        const squadTeams = await storage.getSquadTeamsByAssociation(parseInt(associationId));
+      if (clubId) {
+        const squadTeams = await storage.getSquadTeamsByClub(parseInt(clubId));
         res.json(squadTeams);
       } else {
         const squadTeams = await storage.getSquadTeams();
@@ -549,13 +549,13 @@ export function registerRoutes(app: Express) {
   });
 
   // Chat routes (Sistema de mensagens hierárquico)
-  app.get("/api/chat/:associationId/:channel", authenticateToken, async (req, res) => {
+  app.get("/api/chat/:clubId/:channel", authenticateToken, async (req, res) => {
     try {
       if (!req.user) {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
-      const { associationId, channel } = req.params;
+      const { clubId, channel } = req.params;
       const userRole = req.user.role;
 
       if (channel === "diretoria" && userRole !== "presidente" && userRole !== "diretoria") {
@@ -566,7 +566,7 @@ export function registerRoutes(app: Express) {
         return res.status(403).json({ error: "Only presidente, diretoria and tecnico can access this channel" });
       }
 
-      const messages = await storage.getMessages(parseInt(associationId), channel);
+      const messages = await storage.getMessages(parseInt(clubId), channel);
       res.json(messages);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
