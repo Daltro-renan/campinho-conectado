@@ -51,6 +51,44 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+// Middleware to check if user has required role in a specific club
+export function requireClubRole(allowedRoles: string[]) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      // Extract clubId from request (params, query, or body)
+      const clubId = req.params.clubId || req.query.clubId || req.body.clubId;
+      
+      if (!clubId) {
+        return res.status(400).json({ error: "Club ID is required" });
+      }
+
+      // Get user's membership for this club
+      const membership = await storage.getMembership(req.user.id, parseInt(clubId as string));
+      
+      if (!membership) {
+        return res.status(403).json({ error: "You are not a member of this club" });
+      }
+
+      // Check if user's role in the club is allowed
+      if (!allowedRoles.includes(membership.role)) {
+        return res.status(403).json({ 
+          error: `This action requires one of the following roles: ${allowedRoles.join(", ")}` 
+        });
+      }
+
+      // Attach membership to request for later use
+      (req as any).membership = membership;
+      next();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  };
+}
+
 export function registerRoutes(app: Express) {
   // Register endpoint
   app.post("/api/auth/register", async (req, res) => {
