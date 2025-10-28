@@ -61,14 +61,16 @@ const Games = () => {
   });
 
   const createGameMutation = useMutation({
-    mutationFn: async (data: GameFormData) => 
-      apiRequest("/api/games", "POST", {
+    mutationFn: async (data: GameFormData) => {
+      const gameDate = new Date(data.gameDate);
+      return apiRequest("/api/games", "POST", {
         clubId: 1,
         homeTeamId: parseInt(data.homeTeamId),
         awayTeamId: parseInt(data.awayTeamId),
-        gameDate: new Date(data.gameDate).toISOString(),
+        gameDate: gameDate.toISOString(),
         location: data.location || undefined,
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/games"] });
       setIsAddOpen(false);
