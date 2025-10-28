@@ -19,14 +19,15 @@ The application was migrated from a Lovable/Supabase architecture to a self-host
 - Team statistics displayed: wins, draws, losses, goal difference
 - Visual indicators for payment urgency (red for overdue, yellow for pending, green for paid)
 
-**2. Games Page - Enhanced Game Management:**
-- Fixed form to use Select dropdowns for choosing teams (no more manual ID entry)
+**2. Games Page - Fully Integrated with Squad Teams:**
+- Games page now uses squad teams (from Times tab) instead of separate teams table
+- Select dropdowns show teams created in the Times tab with their abbreviations
 - Validation prevents creating games with same team twice
-- Shows team logos and names in game cards
 - Proper chronological ordering: upcoming games first, past games at bottom
 - Automatic clubId assignment
-- Error handling for empty team database
+- "Ir para Times" button redirects to /squad-teams if no teams exist
 - Query cache invalidation ensures immediate UI updates after creating games
+- Full integration between Times and Games pages
 
 **3. Team Management - Integrated Player CRUD:**
 - Added complete player management within teams:
@@ -111,8 +112,11 @@ The application was migrated from a Lovable/Supabase architecture to a self-host
   - Delete players individually
   - View player status visually (green checkmark for active, gray X for inactive)
   - Display jersey numbers in colored badges
+- Full cross-page integration:
+  - Teams created in Times tab appear in Games page dropdown
+  - Dashboard "Meu Time" card redirects to Times page (/squad-teams)
+  - Games page uses squadTeams for match scheduling
 - Dedicated "Times" tab in navigation
-- Dashboard "Meu Time" card redirects to Times page (/squad-teams)
 - Admin-only permissions for all mutations (presidente/diretoria)
 - Full integration with react-hook-form and zod validation
 
