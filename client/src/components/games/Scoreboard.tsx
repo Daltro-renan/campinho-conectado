@@ -20,7 +20,7 @@ export function Scoreboard({ game }: { game: GameDTO }) {
   return (
     <section
       aria-label="Próximo jogo"
-      className="pitch-markings overflow-hidden rounded-xl text-pitch-foreground shadow-lg shadow-pitch/20"
+      className="pitch-field overflow-hidden rounded-2xl text-pitch-foreground shadow-lg shadow-pitch/20"
     >
       <div className="flex items-center justify-between px-5 pt-4 text-sm">
         <span className="font-semibold">

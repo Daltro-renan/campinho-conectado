@@ -134,7 +134,7 @@ export default function RankingPage() {
       ) : (
         <>
           {/* Pódio: 2º, 1º, 3º */}
-          <section aria-label="Pódio" className="pitch-markings mb-4 overflow-hidden rounded-xl px-3 pt-6 text-pitch-foreground">
+          <section aria-label="Pódio" className="pitch-field mb-4 overflow-hidden rounded-2xl px-3 pt-6 text-pitch-foreground">
             <div className="grid grid-cols-3 items-end gap-2">
               {[podium[1], podium[0], podium[2]].map((p, i) => {
                 if (!p) return <div key={i} />;

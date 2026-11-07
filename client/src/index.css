@@ -10,7 +10,7 @@
  */
 @layer base {
   :root {
-    --background: 90 17% 95%; /* giz  #F1F4EE */
+    --background: 75 20% 96%; /* cal   #F5F6F1 */
     --foreground: 144 31% 11%; /* tinta #13241A */
 
     --card: 0 0% 100%;
@@ -18,7 +18,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 144 31% 11%;
 
-    --primary: 150 69% 18%; /* gramado #0E4D2E */
+    --primary: 152 72% 20%; /* gramado #0E5834 */
     --primary-foreground: 90 30% 97%;
 
     --secondary: 95 16% 89%;
@@ -37,7 +37,11 @@
     --input: 100 11% 80%;
     --ring: 150 69% 24%;
 
-    --radius: 0.625rem;
+    --radius: 0.75rem;
+
+    /* Cor da camisa do clube ativo (definida em tempo real pelo AppShell) */
+    --club: #0e5834;
+    --club-fg: #ffffff;
 
     /* Placar / campo */
     --pitch: 150 69% 18%;
@@ -125,7 +129,8 @@
   h1,
   h2,
   h3 {
-    @apply font-display tracking-tight;
+    @apply font-display;
+    letter-spacing: 0.005em;
   }
 
   :focus-visible {
@@ -151,6 +156,26 @@
       linear-gradient(90deg, transparent calc(50% - 1px), hsl(var(--pitch-line)) calc(50% - 1px), hsl(var(--pitch-line)) calc(50% + 1px), transparent calc(50% + 1px));
   }
 
+  /* Gramado com faixas de corte + marcações (placar da tela inicial e pódio) */
+  .pitch-field {
+    background-color: hsl(var(--pitch));
+    background-image:
+      radial-gradient(circle at 50% 50%, transparent 52px, hsl(0 0% 100% / 0.22) 53px, hsl(0 0% 100% / 0.22) 54.5px, transparent 55.5px),
+      linear-gradient(90deg, transparent calc(50% - 1px), hsl(0 0% 100% / 0.22) calc(50% - 1px), hsl(0 0% 100% / 0.22) calc(50% + 1px), transparent calc(50% + 1px)),
+      repeating-linear-gradient(90deg, transparent 0 44px, hsl(0 0% 100% / 0.05) 44px 88px);
+  }
+
+  /* Faixa na cor da camisa do clube, com listras discretas de tecido */
+  .club-band {
+    background-color: var(--club);
+    color: var(--club-fg);
+    background-image: repeating-linear-gradient(
+      -60deg,
+      transparent 0 14px,
+      rgb(255 255 255 / 0.06) 14px 15px
+    );
+  }
+
   /* Faixas de grama cortada — usadas no cabeçalho da tela de login */
   .pitch-stripes {
     background-color: hsl(var(--pitch));
@@ -162,7 +187,7 @@
   }
 
   .scoreline {
-    @apply font-display font-bold leading-none tabular-nums;
+    @apply font-display font-extrabold leading-none tabular-nums;
   }
 
   /* Área segura no iPhone (barra inferior) */

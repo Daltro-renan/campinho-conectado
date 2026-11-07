@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import {
   AlertTriangle,
@@ -17,6 +17,7 @@ import { ClubSwitcher } from "./ClubSwitcher";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { readableOn } from "@/lib/format";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; mobile?: boolean; finance?: boolean };
 
@@ -44,11 +45,12 @@ function isActive(location: string, href: string) {
 export function AppShell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const { user } = useAuth();
-  const { can } = useActiveClub();
+  const { club, can } = useActiveClub();
+  const clubVars = { "--club": club.colorPrimary, "--club-fg": readableOn(club.colorPrimary) } as CSSProperties;
   const nav = NAV.filter((i) => !i.finance || can("finance.manage"));
 
   return (
-    <div className="min-h-screen md:flex">
+    <div className="min-h-screen md:flex" style={clubVars}>
       {/* Menu lateral (computador) */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">
         <div className="border-b border-sidebar-border p-3">
@@ -63,10 +65,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-[15px] font-medium transition-colors",
+                  "relative flex items-center gap-3 rounded-lg px-3 py-2 text-[15px] font-medium transition-colors",
                   active
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                    : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:inset-y-2 before:-left-3 before:w-1 before:rounded-r before:bg-warn"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 )}
               >
                 <item.icon className="h-[18px] w-[18px]" aria-hidden />
@@ -124,12 +126,19 @@ export function AppShell({ children }: { children: ReactNode }) {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium",
-                  active ? "text-primary" : "text-muted-foreground",
+                  "flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium",
+                  active ? "text-foreground" : "text-muted-foreground",
                 )}
               >
-                {active ? <span className="absolute inset-x-5 top-0 h-0.5 rounded-full bg-primary" aria-hidden /> : null}
-                <item.icon className="h-5 w-5" aria-hidden />
+                <span
+                  className={cn(
+                    "grid h-7 w-12 place-items-center rounded-full transition-colors",
+                    active && "bg-[var(--club)] text-[var(--club-fg)]",
+                  )}
+                  aria-hidden
+                >
+                  <item.icon className="h-[18px] w-[18px]" />
+                </span>
                 {item.label}
               </Link>
             );

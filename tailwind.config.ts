@@ -17,8 +17,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['"Barlow"', "system-ui", "sans-serif"],
-        display: ['"Barlow Condensed"', '"Barlow"', "system-ui", "sans-serif"],
+        sans: ['"Archivo"', "system-ui", "sans-serif"],
+        display: ['"Big Shoulders Display"', '"Archivo"', "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",

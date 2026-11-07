@@ -7,6 +7,7 @@ import { Scoreboard } from "@/components/games/Scoreboard";
 import { GameRow } from "@/components/games/GameRow";
 import { StatusPill } from "@/components/StatusPill";
 import { UserAvatar } from "@/components/UserAvatar";
+import { ClubTeamCrest } from "@/components/TeamCrest";
 import { SectionTitle } from "@/components/PageHeader";
 import { LoadingRows } from "@/components/EmptyState";
 import { api } from "@/lib/api";
@@ -27,10 +28,20 @@ export default function HomePage() {
 
   return (
     <div>
-      <header className="mb-6">
-        <p className="text-sm text-muted-foreground">Olá, {first}</p>
-        <h1 className="text-3xl font-bold md:text-4xl">{club.name}</h1>
+      {/* Faixa na cor da camisa: a cara do clube no topo */}
+      <header className="club-band -mx-4 -mt-5 flex items-center gap-4 px-4 pb-16 pt-6 md:mx-0 md:-mt-2 md:rounded-2xl md:px-6">
+        <ClubTeamCrest
+          abbreviation={club.abbreviation}
+          colorPrimary={club.colorSecondary}
+          colorSecondary={club.colorPrimary}
+          size={60}
+        />
+        <div className="min-w-0">
+          <p className="text-sm opacity-80">Olá, {first}</p>
+          <h1 className="line-clamp-2 text-4xl font-extrabold leading-[0.95] md:text-5xl">{club.name}</h1>
+        </div>
       </header>
+      <div className="relative -mt-11">
 
       {isLoading || !data ? (
         <LoadingRows rows={3} />
@@ -39,7 +50,7 @@ export default function HomePage() {
           {data.nextGame ? (
             <Scoreboard game={data.nextGame} />
           ) : (
-            <div className="pitch-markings flex flex-col items-center rounded-xl px-6 py-10 text-center text-pitch-foreground">
+            <div className="pitch-field flex flex-col items-center rounded-2xl px-6 py-10 text-center text-pitch-foreground">
               <p className="font-display text-2xl font-semibold">Nenhum jogo marcado</p>
               <p className="mt-1 text-sm text-pitch-foreground/75">
                 {can("squad.manage")
@@ -185,6 +196,7 @@ export default function HomePage() {
           ) : null}
         </>
       )}
+      </div>
     </div>
   );
 }
