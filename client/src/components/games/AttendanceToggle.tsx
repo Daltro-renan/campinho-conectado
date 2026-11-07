@@ -1,13 +1,17 @@
-import { Check, X } from "lucide-react";
+import { useState } from "react";
+import { Check, ChevronRight, X } from "lucide-react";
 import type { GameDTO } from "@shared/api";
 import { api } from "@/lib/api";
-import { useClub } from "@/lib/club";
+import { useActiveClub } from "@/lib/club";
 import { useClubMutation } from "@/lib/mutation";
 import { cn } from "@/lib/utils";
+import { AttendanceList } from "./AttendanceList";
+import { gameTitle } from "./GameSides";
 
 /** "Vou" / "Não vou" — confirmação de presença no jogo */
 export function AttendanceToggle({ game, tone = "default" }: { game: GameDTO; tone?: "default" | "pitch" }) {
-  const { clubPath } = useClub();
+  const { club, clubPath } = useActiveClub();
+  const [listOpen, setListOpen] = useState(false);
   const mutation = useClubMutation((status: "confirmado" | "ausente") =>
     api.put(clubPath(`/games/${game.id}/attendance`), { status }),
   );
@@ -23,10 +27,19 @@ export function AttendanceToggle({ game, tone = "default" }: { game: GameDTO; to
       : "bg-secondary text-secondary-foreground hover:bg-accent";
 
   return (
-    <div className="flex items-center gap-2" role="group" aria-label="Sua presença">
-      <span className={cn("mr-1 text-xs", tone === "pitch" ? "text-pitch-foreground/70" : "text-muted-foreground")}>
-        {game.attendance.confirmed} confirmado{game.attendance.confirmed === 1 ? "" : "s"}
-      </span>
+    <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Sua presença">
+      <button
+        type="button"
+        onClick={() => setListOpen(true)}
+        className={cn(
+          "mr-auto inline-flex items-center gap-1 rounded-full py-1 pr-1 text-xs font-medium underline-offset-2 hover:underline",
+          tone === "pitch" ? "text-pitch-foreground/80" : "text-muted-foreground",
+        )}
+      >
+        <span className="scoreline text-base">{game.attendance.confirmed}</span>
+        confirmado{game.attendance.confirmed === 1 ? "" : "s"}, ver lista
+        <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+      </button>
       <button
         type="button"
         aria-pressed={mine === "confirmado"}
@@ -45,6 +58,7 @@ export function AttendanceToggle({ game, tone = "default" }: { game: GameDTO; to
       >
         <X className="h-4 w-4" aria-hidden /> Não vou
       </button>
+      <AttendanceList game={listOpen ? game : null} title={gameTitle(game, club)} onOpenChange={setListOpen} />
     </div>
   );
 }

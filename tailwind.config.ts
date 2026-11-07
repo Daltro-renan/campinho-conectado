@@ -18,7 +18,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ['"Archivo"', "system-ui", "sans-serif"],
-        display: ['"Big Shoulders Display"', '"Archivo"', "system-ui", "sans-serif"],
+        display: ['"Oswald"', '"Archivo"', "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -66,6 +66,15 @@ export default {
           foreground: "hsl(var(--status-warn-foreground))",
         },
         danger: "hsl(var(--status-danger))",
+        // Dourado: destaques (líder, troféu, "é hoje") e bordas de escudo
+        gold: {
+          DEFAULT: "hsl(var(--gold))",
+          foreground: "hsl(var(--gold-foreground))",
+        },
+        ticket: {
+          DEFAULT: "hsl(var(--ticket))",
+          foreground: "hsl(var(--ticket-foreground))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

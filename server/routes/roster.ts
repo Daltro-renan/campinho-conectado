@@ -2,7 +2,9 @@
 import { Router } from "express";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
-import { attendances, gamePlayers, games, memberships, users } from "@shared/schema";
+import { attendances, gameMatches, gamePlayers, games, memberships, users } from "@shared/schema";
+import type { Side } from "@shared/validation";
+import { teamName } from "@shared/standings";
 import { can } from "@shared/roles";
 import { playerAdminSchema, playerProfileSchema } from "@shared/validation";
 import type { PlayerGameDTO, RankingEntry, ScorerDTO } from "@shared/api";
@@ -41,26 +43,24 @@ rosterRouter.patch("/members/:memberId/player", async (req, res) => {
 /** Artilharia do clube */
 rosterRouter.get("/top-scorers", async (req, res) => {
   const { club } = clubCtx(req);
-  res.json(await topScorers(club.id, 10));
+  res.json(await topScorers(club.id, 10, club.name));
 });
 
-export async function topScorers(clubId: number, limit: number): Promise<ScorerDTO[]> {
-  const rows = await db
-    .select({
-      id: memberships.id,
-      name: users.name,
-      avatarUrl: users.avatarUrl,
-      nickname: memberships.nickname,
-      position: memberships.position,
-      goals: memberships.goals,
-      assists: memberships.assists,
-    })
-    .from(memberships)
-    .innerJoin(users, eq(users.id, memberships.userId))
-    .where(and(eq(memberships.clubId, clubId), sql`${memberships.goals} > 0`))
-    .orderBy(desc(memberships.goals), desc(memberships.assists))
-    .limit(limit);
-  return rows;
+export async function topScorers(clubId: number, limit: number, clubName = ""): Promise<ScorerDTO[]> {
+  const ranking = await computeRanking(clubId, clubName, yearOf(new Date()));
+  return ranking
+    .filter((r) => r.goals > 0)
+    .sort((a, b) => b.goals - a.goals || b.assists - a.assists || a.name.localeCompare(b.name))
+    .slice(0, limit)
+    .map((r) => ({
+      id: r.memberId,
+      name: r.name,
+      avatarUrl: r.avatarUrl,
+      nickname: r.nickname,
+      position: r.position,
+      goals: r.goals,
+      assists: r.assists,
+    }));
 }
 
 const yearOf = (d: Date) =>
@@ -69,10 +69,10 @@ const yearOf = (d: Date) =>
 type Participation = {
   gameId: number;
   startsAt: Date;
-  kind: "racha" | "externo";
+  kind: "racha" | "torneio" | "externo";
   title: string;
   userId: number;
-  side: "A" | "B";
+  side: Side;
   myScore: number;
   theirScore: number;
   goals: number;
@@ -90,7 +90,9 @@ async function participations(clubId: number, clubName: string, season: number |
       .from(games)
       .where(and(eq(games.clubId, clubId), eq(games.status, "finalizado")))
   ).filter(
-    (g) => g.teamScore != null && g.opponentScore != null && (season == null || yearOf(g.startsAt) === season),
+    (g) =>
+      (g.kind === "torneio" || (g.teamScore != null && g.opponentScore != null)) &&
+      (season == null || yearOf(g.startsAt) === season),
   );
   if (finished.length === 0) return [];
   const ids = finished.map((g) => g.id);
@@ -101,18 +103,51 @@ async function participations(clubId: number, clubName: string, season: number |
     .select({ gameId: attendances.gameId, userId: attendances.userId })
     .from(attendances)
     .where(and(inArray(attendances.gameId, ids), eq(attendances.status, "confirmado")));
+  const matches = await db
+    .select()
+    .from(gameMatches)
+    .where(inArray(gameMatches.gameId, ids))
+    .orderBy(gameMatches.position, gameMatches.id);
 
   const out: Participation[] = [];
   for (const g of finished) {
+    // Torneio: cada partida conta como um jogo para quem estava nos dois times;
+    // gols e assistências do torneio entram uma vez só (na primeira partida do jogador)
+    if (g.kind === "torneio") {
+      const players = lineup.filter((l) => l.gameId === g.id);
+      const credited = new Set<number>();
+      for (const m of matches.filter((x) => x.gameId === g.id)) {
+        const title = `${g.competitionName || "Torneio"}: ${teamName(g.teams, m.homeSide)} x ${teamName(g.teams, m.awaySide)}`;
+        for (const p of players) {
+          const home = p.side === m.homeSide;
+          if (!home && p.side !== m.awaySide) continue;
+          const first = !credited.has(p.userId);
+          credited.add(p.userId);
+          out.push({
+            gameId: g.id,
+            startsAt: g.startsAt,
+            kind: "torneio",
+            title,
+            userId: p.userId,
+            side: p.side as Side,
+            myScore: home ? m.homeScore : m.awayScore,
+            theirScore: home ? m.awayScore : m.homeScore,
+            goals: first ? p.goals : 0,
+            assists: first ? p.assists : 0,
+          });
+        }
+      }
+      continue;
+    }
     const kind = g.kind === "racha" ? "racha" : "externo";
     const title =
       kind === "racha"
         ? `${g.sideAName ?? "Time A"} x ${g.sideBName ?? "Time B"}`
         : `${clubName} x ${g.opponentName ?? "Adversário"}`;
     const rows = withLineup.has(g.id)
-      ? lineup.filter((l) => l.gameId === g.id).map((l) => ({ userId: l.userId, side: l.side as "A" | "B", goals: l.goals, assists: l.assists }))
+      ? lineup.filter((l) => l.gameId === g.id).map((l) => ({ userId: l.userId, side: l.side as Side, goals: l.goals, assists: l.assists }))
       : kind === "externo"
-        ? confirmed.filter((c) => c.gameId === g.id).map((c) => ({ userId: c.userId, side: "A" as const, goals: 0, assists: 0 }))
+        ? confirmed.filter((c) => c.gameId === g.id).map((c) => ({ userId: c.userId, side: "A" as Side, goals: 0, assists: 0 }))
         : [];
     for (const r of rows) {
       const mine = r.side === "A" ? g.teamScore! : g.opponentScore!;
@@ -140,7 +175,19 @@ function seasonParam(value: unknown): number | null {
 rosterRouter.get("/ranking", async (req, res) => {
   const { club } = clubCtx(req);
   const season = seasonParam(req.query.temporada);
+  const ranking = await computeRanking(club.id, club.name, season);
 
+  // Temporadas com jogos, para o seletor
+  const years = await db
+    .select({ startsAt: games.startsAt })
+    .from(games)
+    .where(and(eq(games.clubId, club.id), eq(games.status, "finalizado")));
+  const seasons = [...new Set([yearOf(new Date()), ...years.map((y) => yearOf(y.startsAt))])].sort((a, b) => b - a);
+
+  res.json({ season, seasons, entries: ranking });
+});
+
+export async function computeRanking(clubId: number, clubName: string, season: number | null): Promise<RankingEntry[]> {
   const members = await db
     .select({
       memberId: memberships.id,
@@ -158,9 +205,9 @@ rosterRouter.get("/ranking", async (req, res) => {
     })
     .from(memberships)
     .innerJoin(users, eq(users.id, memberships.userId))
-    .where(eq(memberships.clubId, club.id));
+    .where(eq(memberships.clubId, clubId));
 
-  const parts = await participations(club.id, club.name, season);
+  const parts = await participations(clubId, clubName, season);
   const stats = new Map<number, { games: number; wins: number; draws: number; losses: number; goals: number; assists: number }>();
   for (const p of parts) {
     const s = stats.get(p.userId) ?? { games: 0, wins: 0, draws: 0, losses: 0, goals: 0, assists: 0 };
@@ -175,7 +222,7 @@ rosterRouter.get("/ranking", async (req, res) => {
   }
 
   const all = season == null;
-  const ranking: RankingEntry[] = members.map(({ manualGoals, manualAssists, manualGames, ...m }) => {
+  return members.map(({ manualGoals, manualAssists, manualGames, ...m }) => {
     const s = stats.get(m.userId) ?? { games: 0, wins: 0, draws: 0, losses: 0, goals: 0, assists: 0 };
     return {
       ...m,
@@ -187,16 +234,7 @@ rosterRouter.get("/ranking", async (req, res) => {
       assists: s.assists + (all ? manualAssists : 0),
     };
   });
-
-  // Temporadas com jogos, para o seletor
-  const years = await db
-    .select({ startsAt: games.startsAt })
-    .from(games)
-    .where(and(eq(games.clubId, club.id), eq(games.status, "finalizado")));
-  const seasons = [...new Set([yearOf(new Date()), ...years.map((y) => yearOf(y.startsAt))])].sort((a, b) => b - a);
-
-  res.json({ season, seasons, entries: ranking });
-});
+}
 
 /** Jogos de que um associado participou (na temporada), do ponto de vista dele */
 rosterRouter.get("/members/:memberId/games", async (req, res) => {

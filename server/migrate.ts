@@ -85,6 +85,19 @@ const STEPS: string[] = [
     END IF;
   END $$`,
   `UPDATE "games" SET "opponent_name" = 'Adversário' WHERE "opponent_name" IS NULL AND "kind" = 'externo'`,
+  // Regras da associação e torneios com vários times
+  `ALTER TABLE "clubs" ADD COLUMN IF NOT EXISTS "rules" text`,
+  `ALTER TABLE "games" ADD COLUMN IF NOT EXISTS "teams" jsonb`,
+  `CREATE TABLE IF NOT EXISTS "game_matches" (
+    "id" serial PRIMARY KEY,
+    "game_id" integer NOT NULL REFERENCES "games"("id") ON DELETE CASCADE,
+    "position" integer NOT NULL DEFAULT 0,
+    "home_side" text NOT NULL,
+    "away_side" text NOT NULL,
+    "home_score" integer NOT NULL,
+    "away_score" integer NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS "game_matches_game_idx" ON "game_matches" ("game_id")`,
 ];
 
 export async function migrate() {

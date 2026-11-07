@@ -14,6 +14,7 @@ import {
   date,
   uniqueIndex,
   index,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -50,6 +51,8 @@ export const clubs = pgTable("clubs", {
   dueDay: integer("due_day").notNull().default(10),
   /** Chave PIX exibida para os associados pagarem */
   pixKey: text("pix_key"),
+  /** Regras/estatuto da associação (texto livre, visível a todos os associados) */
+  rules: text("rules"),
   inviteCode: text("invite_code").notNull().unique(),
   /** Token secreto do link de agenda (.ics) do clube */
   calendarToken: text("calendar_token").unique(),
@@ -103,6 +106,8 @@ export const games = pgTable(
     opponentName: text("opponent_name"),
     sideAName: text("side_a_name"),
     sideBName: text("side_b_name"),
+    /** Torneio: nomes dos times (posição 0 = "A", 1 = "B", ...) */
+    teams: jsonb("teams").$type<string[]>(),
     isHome: boolean("is_home").notNull().default(true),
     competition: text("competition").notNull().default("amistoso"),
     competitionName: text("competition_name"),
@@ -133,6 +138,21 @@ export const gamePlayers = pgTable(
     assists: integer("assists").notNull().default(0),
   },
   (t) => [uniqueIndex("game_players_game_user_idx").on(t.gameId, t.userId), index("game_players_user_idx").on(t.userId)],
+);
+
+/** Partidas de um torneio (time da casa x visitante, pelas letras dos times) */
+export const gameMatches = pgTable(
+  "game_matches",
+  {
+    id: serial("id").primaryKey(),
+    gameId: integer("game_id").notNull().references(() => games.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+    homeSide: text("home_side").notNull(),
+    awaySide: text("away_side").notNull(),
+    homeScore: integer("home_score").notNull(),
+    awayScore: integer("away_score").notNull(),
+  },
+  (t) => [index("game_matches_game_idx").on(t.gameId)],
 );
 
 /** Confirmação de presença dos associados em cada jogo */

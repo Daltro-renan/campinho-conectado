@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { AppLogo } from "@/components/AppLogo";
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -58,10 +59,12 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="pitch-stripes px-6 pb-10 pt-8 text-pitch-foreground">
+      <header className="stadium px-6 pb-10 pt-8 text-pitch-foreground">
         <div className="mx-auto max-w-xl">
           <div className="flex items-center justify-between">
-            <p className="font-display text-lg font-semibold opacity-80">Campinho Conectado</p>
+            <p className="flex items-center gap-2.5 font-display text-lg font-semibold uppercase tracking-wide">
+          <AppLogo size={36} /> Campinho Conectado
+        </p>
             {clubs.length > 0 ? (
               <Button variant="ghost" size="sm" className="text-pitch-foreground hover:bg-white/10" onClick={() => navigate("/")}>
                 Voltar ao app

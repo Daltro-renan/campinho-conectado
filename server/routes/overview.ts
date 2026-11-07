@@ -54,7 +54,7 @@ overviewRouter.get("/overview", async (req, res) => {
       .select({ memberCount: sql<number>`count(*)::int` })
       .from(memberships)
       .where(eq(memberships.clubId, club.id)),
-    topScorers(club.id, 5),
+    topScorers(club.id, 5, club.name),
     clubRecord(club.id),
     listNotices(club.id, 3),
   ]);

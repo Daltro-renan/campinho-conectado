@@ -46,6 +46,11 @@ jobs:
       - run: npx cap add android
         env:
           CAP_SERVER_URL: ${{ vars.API_URL || 'https://campinho-conectado.onrender.com' }}
+      - name: Ícone e tela de abertura do app
+        run: >-
+          npx --yes @capacitor/assets@3 generate --android --assetPath assets
+          --iconBackgroundColor '#0B2340' --iconBackgroundColorDark '#0B2340'
+          --splashBackgroundColor '#071526' --splashBackgroundColorDark '#071526'
       - run: npx cap sync android
         env:
           CAP_SERVER_URL: ${{ vars.API_URL || 'https://campinho-conectado.onrender.com' }}

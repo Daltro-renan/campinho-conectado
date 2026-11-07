@@ -1,7 +1,8 @@
 /** Monta os objetos que a API devolve a partir das linhas do banco. */
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
-import { attendances, gamePlayers, games, memberships, users, type Due, type Game } from "@shared/schema";
+import { attendances, gameMatches, gamePlayers, games, memberships, users, type Due, type Game } from "@shared/schema";
+import type { Side } from "@shared/validation";
 import type {
   DueDTO,
   DueStatus,
@@ -91,16 +92,32 @@ export async function toGameDTOs(list: Game[], viewerId: number): Promise<GameDT
     .leftJoin(memberships, and(eq(memberships.userId, gamePlayers.userId), eq(memberships.clubId, games.clubId)))
     .where(inArray(gamePlayers.gameId, gameIds));
 
+  const matchRows = await db
+    .select()
+    .from(gameMatches)
+    .where(inArray(gameMatches.gameId, gameIds))
+    .orderBy(gameMatches.position, gameMatches.id);
+
   return list.map((g) => {
     const countFor = (status: string) =>
       counts.find((c) => c.gameId === g.id && c.status === status)?.total ?? 0;
     return {
       ...serialize(g),
-      kind: g.kind === "racha" ? "racha" : "externo",
-      opponentName: g.kind === "racha" ? g.opponentName : (g.opponentName ?? "Adversário"),
+      kind: g.kind === "racha" ? "racha" : g.kind === "torneio" ? "torneio" : "externo",
+      opponentName: g.kind === "externo" ? (g.opponentName ?? "Adversário") : g.opponentName,
+      teams: g.teams ?? [],
+      matches: matchRows
+        .filter((m) => m.gameId === g.id)
+        .map((m) => ({
+          id: m.id,
+          homeSide: m.homeSide as Side,
+          awaySide: m.awaySide as Side,
+          homeScore: m.homeScore,
+          awayScore: m.awayScore,
+        })),
       lineup: lineupRows
         .filter((l) => l.gameId === g.id)
-        .map(({ gameId: _g, side, ...l }) => ({ ...l, side: side === "B" ? ("B" as const) : ("A" as const) }))
+        .map(({ gameId: _g, side, ...l }) => ({ ...l, side: side as Side }))
         .sort((a, b) => a.side.localeCompare(b.side) || a.name.localeCompare(b.name)),
       attendance: {
         confirmed: countFor("confirmado"),

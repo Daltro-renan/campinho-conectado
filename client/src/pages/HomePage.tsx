@@ -1,13 +1,12 @@
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CalendarPlus, ChevronRight, Megaphone, Pin } from "lucide-react";
+import { AlertTriangle, CalendarPlus, ChevronRight, Megaphone, Pin, ScrollText } from "lucide-react";
 import type { OverviewDTO } from "@shared/api";
 import { Button } from "@/components/ui/button";
 import { Scoreboard } from "@/components/games/Scoreboard";
 import { GameRow } from "@/components/games/GameRow";
 import { StatusPill } from "@/components/StatusPill";
 import { UserAvatar } from "@/components/UserAvatar";
-import { ClubTeamCrest } from "@/components/TeamCrest";
 import { SectionTitle } from "@/components/PageHeader";
 import { LoadingRows } from "@/components/EmptyState";
 import { api } from "@/lib/api";
@@ -28,20 +27,11 @@ export default function HomePage() {
 
   return (
     <div>
-      {/* Faixa na cor da camisa: a cara do clube no topo */}
-      <header className="club-band -mx-4 -mt-5 flex items-center gap-4 px-4 pb-16 pt-6 md:mx-0 md:-mt-2 md:rounded-2xl md:px-6">
-        <ClubTeamCrest
-          abbreviation={club.abbreviation}
-          colorPrimary={club.colorSecondary}
-          colorSecondary={club.colorPrimary}
-          size={60}
-        />
-        <div className="min-w-0">
-          <p className="text-sm opacity-80">Olá, {first}</p>
-          <h1 className="line-clamp-2 text-4xl font-extrabold leading-[0.95] md:text-5xl">{club.name}</h1>
-        </div>
+      <header className="mb-5">
+        <p className="text-sm text-muted-foreground">Olá, {first}</p>
+        <h1 className="line-clamp-2 text-4xl font-bold uppercase leading-[1.02] tracking-wide md:text-5xl">{club.name}</h1>
       </header>
-      <div className="relative -mt-11">
+      <div>
 
       {isLoading || !data ? (
         <LoadingRows rows={3} />
@@ -50,9 +40,9 @@ export default function HomePage() {
           {data.nextGame ? (
             <Scoreboard game={data.nextGame} />
           ) : (
-            <div className="pitch-field flex flex-col items-center rounded-2xl px-6 py-10 text-center text-pitch-foreground">
+            <div className="stadium flex flex-col items-center rounded-2xl border border-white/10 px-6 pb-12 pt-10 text-center text-white">
               <p className="font-display text-2xl font-semibold">Nenhum jogo marcado</p>
-              <p className="mt-1 text-sm text-pitch-foreground/75">
+              <p className="mt-1 text-sm text-white/75">
                 {can("squad.manage")
                   ? "Marque o próximo jogo para o elenco confirmar presença."
                   : "Quando a comissão marcar o próximo jogo, ele aparece aqui."}
@@ -87,36 +77,42 @@ export default function HomePage() {
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Link
               href="/mensalidades"
-              className="group flex flex-col justify-between rounded-lg border bg-card p-4 transition-colors hover:border-primary"
+              className="ticket group flex min-h-[8.5rem] overflow-hidden rounded-xl shadow-lg shadow-black/20 transition-transform hover:-translate-y-0.5"
             >
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">Sua mensalidade</span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+              <div className="flex min-w-0 flex-1 flex-col justify-between py-4 pl-6 pr-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-display text-lg font-semibold">Mensalidade</span>
+                  <ChevronRight className="h-4 w-4 opacity-60 transition-transform group-hover:translate-x-0.5" />
+                </div>
+                <div>
+                  <StatusPill status={data.dues.status} className="bg-white/70 !text-ticket-foreground !ring-black/10" />
+                  <p className="mt-2 text-sm">
+                    {data.dues.next ? (
+                      <>
+                        {fmtMonth(data.dues.next.referenceMonth)}: <strong>{money(data.dues.next.amount)}</strong>, vence{" "}
+                        {fmtDate(parseDay(data.dues.next.dueDate), "dd/MM")}
+                        {data.dues.openCount > 1 ? ` (+${data.dues.openCount - 1} em aberto)` : ""}
+                      </>
+                    ) : data.dues.status === "pago" ? (
+                      "Tudo pago. Obrigado!"
+                    ) : (
+                      "Nenhuma cobrança gerada ainda."
+                    )}
+                  </p>
+                </div>
               </div>
-              <div className="mt-3">
-                <StatusPill status={data.dues.status} />
-                <p className="mt-2 text-sm">
-                  {data.dues.next ? (
-                    <>
-                      {fmtMonth(data.dues.next.referenceMonth)}: <strong>{money(data.dues.next.amount)}</strong>,
-                      vence {fmtDate(parseDay(data.dues.next.dueDate), "dd/MM")}
-                      {data.dues.openCount > 1 ? ` (+${data.dues.openCount - 1} em aberto)` : ""}
-                    </>
-                  ) : data.dues.status === "pago" ? (
-                    "Tudo pago. Obrigado!"
-                  ) : (
-                    "Nenhuma cobrança gerada ainda."
-                  )}
-                </p>
+              {/* Canhoto com picote e código de barras */}
+              <div className="flex w-16 shrink-0 items-center justify-center border-l-2 border-dashed border-ticket-foreground/30 pr-3">
+                <span className="barcode h-[70%] w-9 opacity-80" aria-hidden />
               </div>
             </Link>
 
-            <div className="rounded-lg border bg-card p-4">
-              <span className="text-sm font-medium text-muted-foreground">Campanha do clube</span>
-              <dl className="mt-3 grid grid-cols-3 text-center">
-                <Stat label="Vitórias" value={data.record.wins} className="text-ok" />
-                <Stat label="Empates" value={data.record.draws} />
-                <Stat label="Derrotas" value={data.record.losses} className="text-danger" />
+            <div className="rounded-xl border bg-card p-4">
+              <span className="font-display text-lg font-semibold">Campanha</span>
+              <dl className="mt-2 grid grid-cols-3 text-center">
+                <Gauge label="Vitórias" value={data.record.wins} total={data.record.played} color="hsl(var(--status-ok))" />
+                <Gauge label="Empates" value={data.record.draws} total={data.record.played} color="hsl(var(--muted-foreground))" />
+                <Gauge label="Derrotas" value={data.record.losses} total={data.record.played} color="hsl(var(--status-danger))" />
               </dl>
               <p className="mt-3 text-center text-xs text-muted-foreground">
                 {data.record.goalsFor} gols marcados, {data.record.goalsAgainst} sofridos
@@ -138,6 +134,15 @@ export default function HomePage() {
               <GameRow game={data.lastGame} />
             </>
           ) : null}
+
+          <Link
+            href="/regras"
+            className="mt-4 flex items-center gap-3 rounded-xl border bg-card px-4 py-3 hover:border-gold/60"
+          >
+            <ScrollText className="h-5 w-5 shrink-0 text-gold" aria-hidden />
+            <span className="flex-1 text-sm font-medium">Regras da associação</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden />
+          </Link>
 
           <SectionTitle action={can("notices.manage") ? <NoticeComposer /> : undefined}>Avisos</SectionTitle>
           {data.notices.length === 0 ? (
@@ -201,11 +206,45 @@ export default function HomePage() {
   );
 }
 
-function Stat({ label, value, className }: { label: string; value: number; className?: string }) {
+/** Mostrador semicircular: a fatia dos jogos com esse resultado */
+function Gauge({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
+  const r = 26;
+  const half = Math.PI * r;
+  const share = total > 0 ? value / total : 0;
   return (
-    <div>
+    <div className="flex flex-col items-center">
       <dt className="sr-only">{label}</dt>
-      <dd className={`scoreline text-4xl ${className ?? ""}`}>{value}</dd>
+      <dd className="relative h-[42px] w-[68px]">
+        <svg viewBox="0 0 68 40" className="absolute inset-0 h-full w-full" aria-hidden>
+          <path d="M8 34a26 26 0 0 1 52 0" fill="none" stroke="hsl(var(--muted))" strokeWidth="6" strokeLinecap="round" />
+          <path
+            d="M8 34a26 26 0 0 1 52 0"
+            fill="none"
+            stroke={color}
+            strokeWidth="6"
+            strokeLinecap="round"
+            strokeDasharray={`${half * share} ${half}`}
+          />
+          {Array.from({ length: 7 }, (_, i) => {
+            const a = Math.PI - (i * Math.PI) / 6;
+            return (
+              <line
+                key={i}
+                x1={34 + Math.cos(a) * 31}
+                y1={34 - Math.sin(a) * 31}
+                x2={34 + Math.cos(a) * 33.5}
+                y2={34 - Math.sin(a) * 33.5}
+                stroke="hsl(var(--muted-foreground))"
+                strokeWidth="1"
+                opacity="0.6"
+              />
+            );
+          })}
+        </svg>
+        <span className="scoreline absolute inset-x-0 bottom-0 text-center text-2xl" style={{ color }}>
+          {value}
+        </span>
+      </dd>
       <dd className="mt-1 text-xs text-muted-foreground" aria-hidden>
         {label}
       </dd>

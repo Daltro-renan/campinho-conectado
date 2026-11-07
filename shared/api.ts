@@ -4,6 +4,8 @@
  */
 import type { Role, Channel } from "./roles";
 import type { User, Club, Game, Due, Notice } from "./schema";
+import type { Side } from "./validation";
+export type { Side };
 
 type Serialized<T> = {
   [K in keyof T]: T[K] extends Date ? string : T[K] extends Date | null ? string | null : T[K];
@@ -80,13 +82,32 @@ export type LineupPlayer = {
   name: string;
   nickname: string | null;
   avatarUrl: string | null;
-  side: "A" | "B";
+  side: Side;
   goals: number;
   assists: number;
 };
 
-export type GameDTO = Serialized<Game> & {
-  kind: "racha" | "externo";
+export type GameKind = "racha" | "torneio" | "externo";
+
+export type MatchDTO = { id: number; homeSide: Side; awaySide: Side; homeScore: number; awayScore: number };
+
+/** Linha da classificação de um torneio */
+export type StandingRow = {
+  side: Side;
+  name: string;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  points: number;
+};
+
+export type GameDTO = Omit<Serialized<Game>, "teams"> & {
+  kind: GameKind;
+  teams: string[];
+  matches: MatchDTO[];
   lineup: LineupPlayer[];
   attendance: { confirmed: number; absent: number; mine: "confirmado" | "ausente" | null };
 };
@@ -204,10 +225,10 @@ export type RankingResponse = {
 export type PlayerGameDTO = {
   gameId: number;
   startsAt: string;
-  kind: "racha" | "externo";
+  kind: GameKind;
   /** "Time A x Time B" ou "Clube x Adversário" */
   title: string;
-  side: "A" | "B";
+  side: Side;
   myScore: number;
   theirScore: number;
   outcome: "V" | "E" | "D";

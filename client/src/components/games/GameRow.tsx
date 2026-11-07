@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ChevronDown, ClipboardList, MoreVertical, Users } from "lucide-react";
+import { ChevronDown, ClipboardList, MoreVertical, Trophy, Users } from "lucide-react";
 import type { GameDTO, LineupPlayer } from "@shared/api";
 import { COMPETITION_LABELS } from "@shared/validation";
+import { standings } from "@shared/standings";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,7 +15,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { fmtDate, fmtGameDay, fmtTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useActiveClub } from "@/lib/club";
-import { gameOutcome, gameSides, sideColors, sideName } from "./GameSides";
+import { SideCrest, gameOutcome, gameSideList, gameSides, sideColors, sideName } from "./GameSides";
 import { AttendanceToggle } from "./AttendanceToggle";
 import { GameExtras } from "./GameExtras";
 
@@ -43,8 +44,11 @@ export function GameRow({ game, actions }: { game: GameDTO; actions?: Actions })
   const cancelled = game.status === "cancelado";
   const scheduled = game.status === "agendado";
   const awaitingResult = scheduled && new Date(game.startsAt) < new Date();
-  const isRacha = game.kind === "racha";
-  const kindLabel = isRacha
+  const isTournament = game.kind === "torneio";
+  const isRacha = game.kind === "racha" || isTournament;
+  const kindLabel = isTournament
+    ? "Torneio"
+    : game.kind === "racha"
     ? "Racha"
     : game.competitionName || COMPETITION_LABELS[game.competition as keyof typeof COMPETITION_LABELS];
   const winner = finished && isRacha && game.teamScore != null && game.opponentScore != null
@@ -100,7 +104,9 @@ export function GameRow({ game, actions }: { game: GameDTO; actions?: Actions })
         ) : null}
       </header>
 
-      {/* Confronto */}
+      {isTournament ? (
+        <TournamentBody game={game} />
+      ) : (
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-4">
         <Side name={home.name} crest={home.crest(36)} won={winner === "A"} />
         <div className="flex min-w-[5.5rem] flex-col items-center">
@@ -123,6 +129,7 @@ export function GameRow({ game, actions }: { game: GameDTO; actions?: Actions })
         </div>
         <Side name={away.name} crest={away.crest(36)} won={winner === "B"} align="end" />
       </div>
+      )}
 
       {game.location ? (
         <p className="-mt-2 px-4 pb-3 text-center text-xs text-muted-foreground">{game.location}</p>
@@ -159,7 +166,7 @@ export function GameRow({ game, actions }: { game: GameDTO; actions?: Actions })
           </button>
           {showLineup ? (
             <div className={cn("grid gap-3 px-4 pb-4", isRacha && "grid-cols-2")}>
-              {(isRacha ? (["A", "B"] as const) : (["A"] as const)).map((s) => {
+              {gameSideList(game).map((s) => {
                 const c = sideColors(club, s);
                 return (
                   <div key={s}>
@@ -209,6 +216,63 @@ export function GameRow({ game, actions }: { game: GameDTO; actions?: Actions })
         </div>
       ) : null}
     </article>
+  );
+}
+
+/** Torneio: times participantes ou, depois de lançado, a classificação com o campeão */
+function TournamentBody({ game }: { game: GameDTO }) {
+  const { club } = useActiveClub();
+  const table = standings(game.teams, game.matches);
+  const done = game.status === "finalizado" && game.matches.length > 0;
+  return (
+    <div className="px-4 py-4">
+      <h3 className="font-display text-2xl font-bold leading-tight">{game.competitionName || "Torneio"}</h3>
+      {done ? (
+        <>
+          <p className="mt-1 flex items-center gap-1.5 text-sm">
+            <Trophy className="h-4 w-4 text-gold" aria-hidden />
+            Campeão: <strong>{table[0].name}</strong>
+          </p>
+          <table className="mt-3 w-full text-sm">
+            <thead className="text-xs text-muted-foreground">
+              <tr>
+                <th className="pb-1 text-left font-medium">Time</th>
+                <th className="w-8 pb-1 font-medium" title="Pontos">P</th>
+                <th className="w-8 pb-1 font-medium" title="Jogos">J</th>
+                <th className="w-8 pb-1 font-medium" title="Vitórias">V</th>
+                <th className="w-10 pb-1 font-medium" title="Saldo de gols">SG</th>
+              </tr>
+            </thead>
+            <tbody>
+              {table.map((t, i) => (
+                <tr key={t.side} className="border-t">
+                  <td className="py-1.5">
+                    <span className="flex items-center gap-2">
+                      <span className="w-4 text-xs text-muted-foreground">{i + 1}</span>
+                      <SideCrest club={club} side={t.side} size={20} />
+                      <span className={cn("truncate", i === 0 && "font-semibold")}>{t.name}</span>
+                    </span>
+                  </td>
+                  <td className="scoreline text-center text-base">{t.points}</td>
+                  <td className="text-center">{t.played}</td>
+                  <td className="text-center">{t.wins}</td>
+                  <td className="text-center">{t.goalsFor - t.goalsAgainst}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      ) : (
+        <ul className="mt-3 flex flex-wrap gap-2">
+          {gameSideList(game).map((s) => (
+            <li key={s} className="flex items-center gap-1.5 rounded-full border py-1 pl-1 pr-3 text-sm">
+              <SideCrest club={club} side={s} size={22} />
+              {sideName(game, s)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

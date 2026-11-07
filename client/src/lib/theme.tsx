@@ -12,7 +12,7 @@ function systemTheme(): "light" | "dark" {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeChoice>(
-    () => (localStorage.getItem(KEY) as ThemeChoice | null) ?? "system",
+    () => (localStorage.getItem(KEY) as ThemeChoice | null) ?? "dark",
   );
   const [system, setSystem] = useState(systemTheme);
 

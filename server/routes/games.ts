@@ -2,8 +2,8 @@
 import { Router } from "express";
 import { and, asc, desc, eq, gte, inArray, lt, ne, or } from "drizzle-orm";
 import { db } from "../db";
-import { attendances, gamePlayers, games, memberships, users } from "@shared/schema";
-import { attendanceSchema, gameSchema, lineupSchema, resultSchema, updateGameSchema } from "@shared/validation";
+import { attendances, gameMatches, gamePlayers, games, memberships, users } from "@shared/schema";
+import { SIDES, attendanceSchema, gameSchema, lineupSchema, resultSchema, updateGameSchema } from "@shared/validation";
 import type { AttendeeDTO } from "@shared/api";
 import { currentUser } from "../lib/auth";
 import { clubCtx, requireCapability } from "../lib/club";
@@ -76,7 +76,7 @@ gamesRouter.patch("/games/:gameId", requireCapability("squad.manage"), async (re
   const status =
     data.status ??
     (data.teamScore != null && data.opponentScore != null ? "finalizado" : undefined);
-  if (status === "finalizado") {
+  if (status === "finalizado" && game.kind !== "torneio") {
     const ts = data.teamScore !== undefined ? data.teamScore : game.teamScore;
     const os = data.opponentScore !== undefined ? data.opponentScore : game.opponentScore;
     if (ts == null || os == null) throw badRequest("Informe o placar para finalizar o jogo");
@@ -152,8 +152,12 @@ gamesRouter.put("/games/:gameId/lineup", requireCapability("squad.manage"), asyn
       .where(and(eq(memberships.clubId, club.id), inArray(memberships.userId, ids)));
     if (members.length !== ids.length) throw badRequest("Só associados do clube podem ser escalados");
   }
-  if (game.kind !== "racha" && players.some((p) => p.side === "B")) {
-    throw badRequest("No jogo contra adversário, todos os escalados jogam pelo clube");
+  const allowed: string[] =
+    game.kind === "torneio" ? SIDES.slice(0, game.teams?.length ?? 0) : game.kind === "racha" ? ["A", "B"] : ["A"];
+  if (players.some((p) => !allowed.includes(p.side))) {
+    throw badRequest(
+      game.kind === "externo" ? "No jogo contra adversário, todos os escalados jogam pelo clube" : "Time inválido para este jogo",
+    );
   }
 
   const previous = await db.select().from(gamePlayers).where(eq(gamePlayers.gameId, game.id));
@@ -181,12 +185,30 @@ gamesRouter.put("/games/:gameId/result", requireCapability("squad.manage"), asyn
   const { club } = clubCtx(req);
   const game = await findGame(club.id, idParam(req.params.gameId, "Jogo"));
   const data = parse(resultSchema, req.body);
+  const isTournament = game.kind === "torneio";
+  if (isTournament) {
+    const valid = SIDES.slice(0, game.teams?.length ?? 0) as string[];
+    if (data.matches.length === 0) throw badRequest("Lance pelo menos uma partida do torneio");
+    if (data.matches.some((m) => !valid.includes(m.homeSide) || !valid.includes(m.awaySide))) {
+      throw badRequest("Partida com time que não está no torneio");
+    }
+  } else if (data.teamScore == null || data.opponentScore == null) {
+    throw badRequest("Informe o placar");
+  }
 
   await db.transaction(async (tx) => {
     await tx
       .update(games)
-      .set({ teamScore: data.teamScore, opponentScore: data.opponentScore, status: "finalizado" })
+      .set({
+        teamScore: isTournament ? null : data.teamScore,
+        opponentScore: isTournament ? null : data.opponentScore,
+        status: "finalizado",
+      })
       .where(eq(games.id, game.id));
+    if (isTournament) {
+      await tx.delete(gameMatches).where(eq(gameMatches.gameId, game.id));
+      await tx.insert(gameMatches).values(data.matches.map((m, position) => ({ ...m, gameId: game.id, position })));
+    }
     for (const p of data.players) {
       await tx
         .update(gamePlayers)

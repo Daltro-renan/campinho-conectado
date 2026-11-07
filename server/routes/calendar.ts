@@ -74,7 +74,13 @@ calendarRouter.get("/calendar/:file", async (req, res) => {
       `DTSTAMP:${icsDate(new Date())}`,
       `DTSTART:${icsDate(g.startsAt)}`,
       `DTEND:${icsDate(new Date(g.startsAt.getTime() + GAME_DURATION_MS))}`,
-      fold(`SUMMARY:${esc(`${isRacha ? "Racha: " : ""}${home} x ${away}${score}`)}`),
+      fold(
+        `SUMMARY:${esc(
+          g.kind === "torneio"
+            ? `Torneio: ${g.competitionName || (g.teams ?? []).join(", ")}`
+            : `${isRacha ? "Racha: " : ""}${home} x ${away}${score}`,
+        )}`,
+      ),
       ...(g.location ? [fold(`LOCATION:${esc(g.location)}`)] : []),
       ...(description ? [fold(`DESCRIPTION:${esc(description)}`)] : []),
       `STATUS:${g.status === "cancelado" ? "CANCELLED" : "CONFIRMED"}`,

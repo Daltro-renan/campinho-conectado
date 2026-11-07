@@ -106,6 +106,7 @@ export const clubSchema = z.object({
   monthlyFee: z.coerce.number().int().min(0).max(10_000_00).optional(),
   dueDay: z.coerce.number().int().min(1).max(28).optional(),
   pixKey: optionalText(120),
+  rules: optionalText(10_000),
 });
 export const updateClubSchema = clubSchema.partial();
 
@@ -166,13 +167,21 @@ export const COMPETITION_LABELS: Record<(typeof COMPETITIONS)[number], string> =
 };
 export const GAME_STATUSES = ["agendado", "finalizado", "cancelado"] as const;
 
-export const GAME_KINDS = ["racha", "externo"] as const;
+export const GAME_KINDS = ["racha", "torneio", "externo"] as const;
+/** Letras dos lados/times (racha usa A e B; torneio usa de 3 a 8) */
+export const SIDES = ["A", "B", "C", "D", "E", "F", "G", "H"] as const;
+export type Side = (typeof SIDES)[number];
 
 const gameBase = z.object({
   kind: z.enum(GAME_KINDS).default("racha"),
   opponentName: optionalText(80),
   sideAName: optionalText(30),
   sideBName: optionalText(30),
+  teams: z
+    .array(z.string().trim().min(1, "Dê nome a todos os times").max(30))
+    .max(8, "No máximo 8 times")
+    .optional()
+    .nullable(),
   isHome: z.boolean().default(true),
   competition: z.enum(COMPETITIONS).default("amistoso"),
   competitionName: optionalText(80),
@@ -181,21 +190,38 @@ const gameBase = z.object({
   notes: optionalText(500),
 });
 
-export const gameSchema = gameBase.refine((g) => g.kind === "racha" || (g.opponentName?.length ?? 0) >= 2, {
-  message: "Informe o adversário",
-  path: ["opponentName"],
-});
+export const gameSchema = gameBase
+  .refine((g) => g.kind !== "externo" || (g.opponentName?.length ?? 0) >= 2, {
+    message: "Informe o adversário",
+    path: ["opponentName"],
+  })
+  .refine((g) => g.kind !== "torneio" || (g.teams?.length ?? 0) >= 3, {
+    message: "O torneio precisa de pelo menos 3 times",
+    path: ["teams"],
+  });
 
 export const lineupSchema = z.object({
   players: z
-    .array(z.object({ userId: z.coerce.number().int().positive(), side: z.enum(["A", "B"]) }))
+    .array(z.object({ userId: z.coerce.number().int().positive(), side: z.enum(SIDES) }))
     .max(200),
 });
 
 /** Placar + gols e assistências de cada jogador escalado */
+export const matchSchema = z
+  .object({
+    homeSide: z.enum(SIDES),
+    awaySide: z.enum(SIDES),
+    homeScore: z.coerce.number().int().min(0).max(99),
+    awayScore: z.coerce.number().int().min(0).max(99),
+  })
+  .refine((m) => m.homeSide !== m.awaySide, { message: "Uma partida precisa de dois times diferentes" });
+
 export const resultSchema = z.object({
-  teamScore: z.coerce.number().int().min(0).max(99),
-  opponentScore: z.coerce.number().int().min(0).max(99),
+  /** Racha e jogo contra adversário */
+  teamScore: z.coerce.number().int().min(0).max(99).optional(),
+  opponentScore: z.coerce.number().int().min(0).max(99).optional(),
+  /** Torneio: todas as partidas */
+  matches: z.array(matchSchema).max(80).default([]),
   players: z
     .array(
       z.object({

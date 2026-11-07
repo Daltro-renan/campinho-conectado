@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Shuffle } from "lucide-react";
-import type { AttendeeDTO, GameDTO, MemberDTO } from "@shared/api";
+import type { AttendeeDTO, GameDTO, MemberDTO, Side } from "@shared/api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -10,9 +10,9 @@ import { api } from "@/lib/api";
 import { useActiveClub } from "@/lib/club";
 import { useClubMutation } from "@/lib/mutation";
 import { cn } from "@/lib/utils";
-import { sideColors, sideName } from "./GameSides";
+import { gameSideList, sideColors, sideName } from "./GameSides";
 
-type Pick = "A" | "B" | null;
+type Pick = Side | null;
 
 /** Embaralha (Fisher–Yates) */
 function shuffle<T>(list: T[]): T[] {
@@ -26,10 +26,10 @@ function shuffle<T>(list: T[]): T[] {
 
 /**
  * Sorteio equilibrado: separa goleiros primeiro e depois distribui os demais
- * alternando entre os times, para nenhum lado ficar com todos da mesma posição.
+ * sempre no time com menos gente, para nenhum lado ficar com todos da mesma posição.
  */
-function drawTeams(players: MemberDTO[]): Map<number, "A" | "B"> {
-  const result = new Map<number, "A" | "B">();
+function drawTeams(players: MemberDTO[], sides: Side[]): Map<number, Side> {
+  const result = new Map<number, Side>();
   const keepers = shuffle(players.filter((p) => p.position === "Goleiro"));
   const byPosition = new Map<string, MemberDTO[]>();
   for (const p of players.filter((x) => x.position !== "Goleiro")) {
@@ -37,13 +37,14 @@ function drawTeams(players: MemberDTO[]): Map<number, "A" | "B"> {
     byPosition.set(key, [...(byPosition.get(key) ?? []), p]);
   }
   const ordered = [...keepers, ...shuffle([...byPosition.values()]).flatMap((group) => shuffle(group))];
-  const count = { A: 0, B: 0 };
-  let next: "A" | "B" = Math.random() < 0.5 ? "A" : "B";
+  const count = new Map<Side, number>(sides.map((s) => [s, 0]));
+  const order = shuffle(sides);
   for (const p of ordered) {
-    const side: "A" | "B" = count.A === count.B ? next : count.A < count.B ? "A" : "B";
+    const min = Math.min(...count.values());
+    const side = order.find((s) => count.get(s) === min)!;
     result.set(p.userId, side);
-    count[side] += 1;
-    next = side === "A" ? "B" : "A";
+    count.set(side, min + 1);
+    order.push(order.splice(order.indexOf(side), 1)[0]);
   }
   return result;
 }
@@ -51,8 +52,9 @@ function drawTeams(players: MemberDTO[]): Map<number, "A" | "B"> {
 /** Montar os times do jogo, jogador por jogador (ou sortear entre quem confirmou presença) */
 export function LineupDialog({ game, onOpenChange }: { game: GameDTO | null; onOpenChange: (open: boolean) => void }) {
   const { club, clubPath, key } = useActiveClub();
-  const isRacha = game?.kind === "racha";
-  const [picks, setPicks] = useState<Map<number, "A" | "B">>(new Map());
+  const isRacha = game?.kind === "racha" || game?.kind === "torneio";
+  const sides = game ? gameSideList(game) : [];
+  const [picks, setPicks] = useState<Map<number, Side>>(new Map());
 
   const members = useQuery({
     queryKey: key("members"),
@@ -90,7 +92,8 @@ export function LineupDialog({ game, onOpenChange }: { game: GameDTO | null; onO
 
   const cycle = (userId: number) => {
     const current: Pick = picks.get(userId) ?? null;
-    const next: Pick = isRacha ? (current === null ? "A" : current === "A" ? "B" : null) : current ? null : "A";
+    const i = current === null ? -1 : sides.indexOf(current);
+    const next: Pick = i + 1 < sides.length ? sides[i + 1] : null;
     const copy = new Map(picks);
     if (next) copy.set(userId, next);
     else copy.delete(userId);
@@ -104,14 +107,12 @@ export function LineupDialog({ game, onOpenChange }: { game: GameDTO | null; onO
       toast.error("Ninguém confirmou presença ainda. Marque os jogadores tocando nos nomes e sorteie de novo.");
       return;
     }
-    setPicks(drawTeams(pool));
+    setPicks(drawTeams(pool, sides));
     toast.success(`Times sorteados com ${pool.length} jogadores`);
   };
 
-  const countA = [...picks.values()].filter((s) => s === "A").length;
-  const countB = [...picks.values()].filter((s) => s === "B").length;
-  const colorA = sideColors(club, "A");
-  const colorB = sideColors(club, "B");
+  const countOf = (side: Side) => [...picks.values()].filter((s) => s === side).length;
+  const countA = countOf("A");
 
   return (
     <Dialog open={!!game} onOpenChange={onOpenChange}>
@@ -120,15 +121,16 @@ export function LineupDialog({ game, onOpenChange }: { game: GameDTO | null; onO
           <DialogTitle className="font-display text-2xl">{isRacha ? "Montar os times" : "Escalação"}</DialogTitle>
           <DialogDescription>
             {isRacha
-              ? "Toque no jogador para alternar: Time A, Time B ou fora. Quem confirmou presença aparece primeiro."
+              ? `Toque no jogador para passar pelos times (${sides.join(", ")}) ou deixar fora. Quem confirmou presença aparece primeiro.`
               : `Toque em quem joga pelo ${club.name}. Quem confirmou presença aparece primeiro.`}
           </DialogDescription>
         </DialogHeader>
 
         {isRacha ? (
-          <div className="flex items-center gap-2">
-            <SideCount label={sideName(game, "A")} count={countA} color={colorA.primary} />
-            <SideCount label={sideName(game, "B")} count={countB} color={colorB.primary} />
+          <div className="flex flex-wrap items-center gap-2">
+            {sides.map((s) => (
+              <SideCount key={s} label={sideName(game, s)} count={countOf(s)} color={sideColors(club, s).primary} />
+            ))}
             <Button type="button" size="sm" variant="outline" className="ml-auto shrink-0" onClick={draw}>
               <Shuffle className="mr-1.5 h-4 w-4" /> Sortear
             </Button>

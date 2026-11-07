@@ -40,7 +40,7 @@ export function TeamCrest({
 }: Props) {
   const id = `crest-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`;
   const path = CREST_PATHS[(shape as CrestShape) ?? "classico"] ?? CREST_PATHS.classico;
-  const text = readableOn(colorPrimary);
+  const text = readableOn(colorSecondary);
   const label = abbreviation.slice(0, 4);
 
   return (
@@ -50,12 +50,23 @@ export function TeamCrest({
       viewBox="0 0 40 46"
       role="img"
       aria-label={`Escudo ${label}`}
-      className={cn("shrink-0 drop-shadow-sm", className)}
+      className={cn("shrink-0 drop-shadow-[0_2px_3px_rgba(0,0,0,0.35)]", className)}
     >
       <defs>
         <clipPath id={id}>
           <path d={path} />
         </clipPath>
+        <linearGradient id={`${id}-gold`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#F6DC8C" />
+          <stop offset="0.5" stopColor="#D4A437" />
+          <stop offset="1" stopColor="#8E6216" />
+        </linearGradient>
+        <linearGradient id={`${id}-gloss`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.32" />
+          <stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.06" />
+          <stop offset="0.5" stopColor="#000000" stopOpacity="0" />
+          <stop offset="1" stopColor="#000000" stopOpacity="0.18" />
+        </linearGradient>
       </defs>
       {logoUrl ? (
         <>
@@ -63,29 +74,29 @@ export function TeamCrest({
             <rect width="40" height="46" fill="#FFFFFF" />
             <image href={logoUrl} x="0" y="0" width="40" height="46" preserveAspectRatio="xMidYMid slice" />
           </g>
-          <path d={path} fill="none" stroke={colorPrimary} strokeWidth="2.2" />
+          <path d={path} fill="none" stroke={`url(#${id}-gold)`} strokeWidth="2.4" />
         </>
       ) : (
         <>
           <g clipPath={`url(#${id})`}>
             <rect width="40" height="46" fill={colorPrimary} />
-            <path d="M-4 30 44 12v7L-4 37Z" fill={colorSecondary} opacity={0.9} />
+            <rect x="0" y="16.5" width="40" height="13" fill={colorSecondary} />
+            <rect x="0" y="16.5" width="40" height="1" fill="rgba(0,0,0,.18)" />
+            <rect x="0" y="28.5" width="40" height="1" fill="rgba(0,0,0,.18)" />
+            <rect width="40" height="46" fill={`url(#${id}-gloss)`} />
           </g>
-          <path d={path} fill="none" stroke="rgba(0,0,0,.18)" strokeWidth="1" />
+          <path d={path} fill="none" stroke={`url(#${id}-gold)`} strokeWidth="2.4" />
           <text
             x="20"
-            y="23"
+            y="23.4"
             textAnchor="middle"
             dominantBaseline="middle"
             fill={text}
             style={{
-              fontFamily: '"Barlow Condensed", sans-serif',
+              fontFamily: '"Oswald", sans-serif',
               fontWeight: 700,
-              fontSize: label.length > 3 ? 10.5 : 13,
-              letterSpacing: 0.3,
-              paintOrder: "stroke",
-              stroke: text === "#FFFFFF" ? "rgba(0,0,0,.25)" : "rgba(255,255,255,.35)",
-              strokeWidth: 1.2,
+              fontSize: label.length > 3 ? 9 : label.length > 2 ? 10.5 : 12,
+              letterSpacing: 0.2,
             }}
           >
             {label}
