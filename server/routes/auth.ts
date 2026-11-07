@@ -1,0 +1,106 @@
+/** Conta do usuário: cadastro, login, perfil, senha e exclusão. */
+import { Router } from "express";
+import bcrypt from "bcryptjs";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { db } from "../db";
+import { clubs, memberships, users } from "@shared/schema";
+import {
+  changePasswordSchema,
+  deleteAccountSchema,
+  loginSchema,
+  registerSchema,
+  updateProfileSchema,
+} from "@shared/validation";
+import { currentUser, requireAuth, signToken, toPublicUser } from "../lib/auth";
+import { badRequest, conflict, nonEmpty, parse, rateLimit, unauthorized } from "../lib/http";
+
+export const authRouter = Router();
+
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
+
+authRouter.post("/register", limiter, async (req, res) => {
+  const data = parse(registerSchema, req.body);
+
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, data.email));
+  if (existing) throw conflict("Já existe uma conta com esse e-mail");
+
+  const [user] = await db
+    .insert(users)
+    .values({
+      name: data.name,
+      email: data.email,
+      passwordHash: await bcrypt.hash(data.password, 10),
+    })
+    .returning();
+
+  res.status(201).json({ token: signToken(user.id), user: toPublicUser(user) });
+});
+
+authRouter.post("/login", limiter, async (req, res) => {
+  const data = parse(loginSchema, req.body);
+  const [user] = await db.select().from(users).where(eq(users.email, data.email));
+  const valid = user && (await bcrypt.compare(data.password, user.passwordHash));
+  if (!user || !valid) throw unauthorized("E-mail ou senha incorretos");
+  res.json({ token: signToken(user.id), user: toPublicUser(user) });
+});
+
+authRouter.get("/me", requireAuth, (req, res) => {
+  res.json(toPublicUser(currentUser(req)));
+});
+
+authRouter.patch("/me", requireAuth, async (req, res) => {
+  const user = currentUser(req);
+  const data = nonEmpty(parse(updateProfileSchema, req.body));
+  const [updated] = await db.update(users).set(data).where(eq(users.id, user.id)).returning();
+  res.json(toPublicUser(updated));
+});
+
+authRouter.post("/password", requireAuth, limiter, async (req, res) => {
+  const user = currentUser(req);
+  const data = parse(changePasswordSchema, req.body);
+  if (!(await bcrypt.compare(data.currentPassword, user.passwordHash))) {
+    throw badRequest("A senha atual está incorreta");
+  }
+  await db
+    .update(users)
+    .set({ passwordHash: await bcrypt.hash(data.newPassword, 10) })
+    .where(eq(users.id, user.id));
+  res.json({ ok: true });
+});
+
+authRouter.delete("/me", requireAuth, async (req, res) => {
+  const user = currentUser(req);
+  const data = parse(deleteAccountSchema, req.body);
+  if (!(await bcrypt.compare(data.password, user.passwordHash))) {
+    throw badRequest("Senha incorreta");
+  }
+
+  // Não deixar um clube sem presidente: se a pessoa é a única presidente
+  // de um clube com outros associados, ela precisa passar o cargo antes.
+  const presidencies = await db
+    .select({ clubId: memberships.clubId })
+    .from(memberships)
+    .where(and(eq(memberships.userId, user.id), eq(memberships.role, "presidente")));
+
+  const soloClubs: number[] = [];
+  for (const { clubId } of presidencies) {
+    const [others] = await db
+      .select({
+        presidents: sql<number>`count(*) filter (where ${memberships.role} = 'presidente')::int`,
+        total: sql<number>`count(*)::int`,
+      })
+      .from(memberships)
+      .where(and(eq(memberships.clubId, clubId), ne(memberships.userId, user.id)));
+    if (others.total === 0) soloClubs.push(clubId);
+    if (others.total > 0 && others.presidents === 0) {
+      throw badRequest(
+        "Você é o único presidente de um clube. Passe a presidência para outro associado antes de excluir a conta.",
+      );
+    }
+  }
+
+  // Clubes em que a pessoa era o único associado deixam de existir junto com a conta
+  if (soloClubs.length > 0) await db.delete(clubs).where(inArray(clubs.id, soloClubs));
+  await db.delete(users).where(eq(users.id, user.id));
+  res.json({ ok: true });
+});

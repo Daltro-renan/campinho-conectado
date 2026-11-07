@@ -1,0 +1,18 @@
+# Publicação no Render (https://render.com) — "New > Blueprint" e escolha este repositório.
+# O banco pode ser o PostgreSQL gratuito do Neon (https://neon.tech): copie a
+# connection string para a variável DATABASE_URL quando o Render pedir.
+services:
+  - type: web
+    name: campinho-conectado
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build && npm run db:push -- --force
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true

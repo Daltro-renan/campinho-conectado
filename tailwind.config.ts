@@ -1,18 +1,25 @@
 import type { Config } from "tailwindcss";
+import animate from "tailwindcss-animate";
 
+// Os caminhos do `content` são relativos a este arquivo. Antes apontavam para ./src,
+// que não existe na raiz — por isso o CSS não era gerado.
 export default {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
-  prefix: "",
+  content: {
+    relative: true,
+    files: ["./client/index.html", "./client/src/**/*.{ts,tsx}"],
+  },
   theme: {
     container: {
       center: true,
-      padding: "2rem",
-      screens: {
-        "2xl": "1400px",
-      },
+      padding: "1rem",
+      screens: { "2xl": "1200px" },
     },
     extend: {
+      fontFamily: {
+        sans: ['"Barlow"', "system-ui", "sans-serif"],
+        display: ['"Barlow Condensed"', '"Barlow"', "system-ui", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -47,6 +54,18 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        pitch: {
+          DEFAULT: "hsl(var(--pitch))",
+          foreground: "hsl(var(--pitch-foreground))",
+          line: "hsl(var(--pitch-line))",
+        },
+        // Cores dos cartões: usadas só para status (em dia / pendente / vencido)
+        ok: "hsl(var(--status-ok))",
+        warn: {
+          DEFAULT: "hsl(var(--status-warn))",
+          foreground: "hsl(var(--status-warn-foreground))",
+        },
+        danger: "hsl(var(--status-danger))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -65,20 +84,12 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       animation: {
@@ -87,5 +98,5 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [animate],
 } satisfies Config;

@@ -1,73 +1,102 @@
-# Welcome to your Lovable project
+# Campinho Conectado
 
-## Project info
+Aplicativo de gestão para associações e clubes de futebol amador. Ele reúne jogos, elenco, mensalidades, avisos e o chat da diretoria num lugar só. Funciona no navegador do celular, pode ser instalado como app (PWA) e pode virar app Android/iOS com o Capacitor.
 
-**URL**: https://lovable.dev/projects/0da8c8c7-9e1a-4c94-be43-9ca052f68eb8
+## O que o app faz
 
-## How can I edit this code?
+- **Vários clubes por conta.** Cada pessoa pode participar de mais de um clube, com um cargo diferente em cada um. Quem cria o clube vira presidente e convida os outros por um **código de convite**.
+- **Cargos e permissões por clube:**
 
-There are several ways of editing your application.
+  | Ação | Presidente | Diretoria | Técnico | Jogador |
+  |---|:-:|:-:|:-:|:-:|
+  | Editar dados do clube, excluir clube | ✓ | | | |
+  | Mudar cargos e remover associados | ✓ | só técnicos e jogadores | | |
+  | Criar e editar times | ✓ | ✓ | | |
+  | Elenco, jogos e resultados | ✓ | ✓ | ✓ | |
+  | Gerar mensalidades e dar baixa | ✓ | ✓ | | |
+  | Publicar avisos | ✓ | ✓ | | |
+  | Confirmar presença, ver tudo, chat geral | ✓ | ✓ | ✓ | ✓ |
 
-**Use Lovable**
+- **Início:** placar do próximo jogo com "Vou" / "Não vou", situação da sua mensalidade, campanha do clube (V-E-D), último resultado, avisos e artilharia.
+- **Jogos:** marcar jogos contra times de fora ou entre times do próprio clube, lançar o placar, cancelar e ver o histórico.
+- **Times:** categorias do clube (Principal, Sub-17, Veteranos…) com cores, escudo, técnico e elenco. Cada jogador tem número, posição, situação e os números da temporada.
+- **Mensalidades:** cada associado vê as suas e a chave PIX do clube. A diretoria gera as cobranças do mês para todos de uma vez, dá baixa informando a forma de pagamento e acompanha quanto entrou. Associados podem ser marcados como isentos.
+- **Chat:** três canais. O Geral é para todos, o Comissão técnica para técnicos e diretoria, e o Diretoria só para presidente e diretoria.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/0da8c8c7-9e1a-4c94-be43-9ca052f68eb8) and start prompting.
+## Tecnologias
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Frontend:** React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui, TanStack Query, wouter
+- **Backend:** Node.js, Express 5, TypeScript (executado com `tsx`)
+- **Banco:** PostgreSQL com Drizzle ORM
+- **Login:** e-mail e senha (bcrypt) com token JWT
 
-**Use your preferred IDE**
+## Estrutura
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```
+client/            app React
+  src/pages/       uma tela por arquivo
+  src/components/  componentes (games/, squad/, layout/, ui/ = shadcn)
+  src/lib/         API, login, clube ativo, tema, formatação
+server/            API Express
+  routes/          auth, clubs, squad (times/jogadores), games, dues, chat, overview
+  lib/             autenticação, contexto do clube, erros, montagem das respostas
+shared/            código usado pelos dois lados
+  schema.ts        tabelas do banco
+  roles.ts         cargos e permissões
+  validation.ts    validação dos dados (zod)
+  api.ts           formato das respostas da API
+docs/              requisitos originais e telas de referência
 ```
 
-**Edit a file directly in GitHub**
+## Rodando no seu computador
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Pré-requisitos: Node.js 20 ou mais novo e um banco PostgreSQL. O [Neon](https://neon.tech) tem um plano gratuito.
 
-**Use GitHub Codespaces**
+```sh
+npm install
+cp .env.example .env      # preencha DATABASE_URL e JWT_SECRET
+npm run db:push           # cria as tabelas no banco
+npm run dev               # abre em http://localhost:5000
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Outros comandos:
 
-## What technologies are used for this project?
+| Comando | Para que serve |
+|---|---|
+| `npm run build` | gera os arquivos do app em `dist/public` |
+| `npm start` | roda em modo produção (precisa do build antes) |
+| `npm run check` | confere os tipos do TypeScript |
+| `npm run db:studio` | abre um painel para ver e editar o banco |
 
-This project is built with:
+## Publicando
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Render (recomendado)
 
-## How can I deploy this project?
+1. Crie um banco gratuito no [Neon](https://neon.tech) e copie a *connection string*.
+2. No [Render](https://render.com), clique em **New → Blueprint** e escolha este repositório. O arquivo `render.yaml` já configura tudo.
+3. Quando pedir, cole a connection string em `DATABASE_URL`. O `JWT_SECRET` é gerado sozinho.
 
-Simply open [Lovable](https://lovable.dev/projects/0da8c8c7-9e1a-4c94-be43-9ca052f68eb8) and click on Share -> Publish.
+O build já cria as tabelas no banco.
 
-## Can I connect a custom domain to my Lovable project?
+### Replit
 
-Yes, you can!
+Importe o repositório, adicione `DATABASE_URL` e `JWT_SECRET` em **Secrets** e clique em **Run**. Para publicar, use **Deploy**. O arquivo `.replit` já tem os comandos.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### App Android/iOS (Capacitor)
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+O app nativo precisa saber o endereço do servidor publicado:
+
+```sh
+VITE_API_URL=https://seu-app.onrender.com npm run build
+npx cap add android        # só na primeira vez
+npx cap sync
+npx cap open android       # abre no Android Studio
+```
+
+## Próximos passos sugeridos
+
+- Pagamento online da mensalidade (PIX com QR Code, via Mercado Pago ou Stripe)
+- Login com Google
+- Envio de fotos (escudo, foto de perfil) direto do celular
+- Escalação e súmula por jogo (gols e cartões lançados por partida)
+- Notificações de jogo marcado e de mensalidade vencendo

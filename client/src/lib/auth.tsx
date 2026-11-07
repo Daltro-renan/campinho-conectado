@@ -1,51 +1,59 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
-import type { PublicUser } from "@shared/schema";
+/** Sessão do usuário: guarda o token e expõe o usuário logado. */
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { AuthResponse, PublicUser } from "@shared/api";
+import { api, setUnauthorizedHandler, tokenStore } from "./api";
 
-interface AuthContextType {
+type AuthContextValue = {
   user: PublicUser | null;
   isLoading: boolean;
-  login: (token: string) => void;
-  logout: () => void;
-  refreshUser: () => void;
-}
+  signIn: (res: AuthResponse) => void;
+  signOut: () => void;
+  setUser: (user: PublicUser) => void;
+};
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem("token"));
+  const queryClient = useQueryClient();
+  const [token, setToken] = useState(() => tokenStore.get());
 
-  const { data: user, isLoading, refetch } = useQuery<PublicUser>({
-    queryKey: ["/api/auth/me"],
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["me", token],
+    queryFn: () => api.get<PublicUser>("/auth/me"),
     enabled: !!token,
-    retry: false,
+    staleTime: 5 * 60_000,
   });
 
-  const login = (newToken: string) => {
-    localStorage.setItem("token", newToken);
-    setToken(newToken);
-  };
-
-  const logout = () => {
-    localStorage.removeItem("token");
+  const signOut = useCallback(() => {
+    tokenStore.clear();
+    localStorage.removeItem("campinho.clubId");
     setToken(null);
-  };
+    queryClient.clear();
+  }, [queryClient]);
 
-  const refreshUser = () => {
-    refetch();
-  };
+  useEffect(() => setUnauthorizedHandler(signOut), [signOut]);
 
-  return (
-    <AuthContext.Provider value={{ user: user || null, isLoading, login, logout, refreshUser }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user: token ? (user ?? null) : null,
+      isLoading: !!token && isLoading,
+      signIn: ({ token: newToken, user: newUser }) => {
+        tokenStore.set(newToken);
+        queryClient.setQueryData(["me", newToken], newUser);
+        setToken(newToken);
+      },
+      signOut,
+      setUser: (u) => queryClient.setQueryData(["me", token], u),
+    }),
+    [token, user, isLoading, signOut, queryClient],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth precisa estar dentro de AuthProvider");
+  return ctx;
 }

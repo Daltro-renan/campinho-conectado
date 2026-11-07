@@ -1,43 +1,91 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Route, Switch } from "wouter";
+import { Route, Switch, Redirect } from "wouter";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { AppShell } from "@/components/layout/AppShell";
 import { queryClient } from "@/lib/queryClient";
-import { AuthProvider } from "@/lib/auth";
-import { ThemeProvider } from "@/contexts/ThemeContext";
-import Home from "./pages/Home";
-import Auth from "./pages/Auth";
-import Games from "./pages/Games";
-import Team from "./pages/Team";
-import Profile from "./pages/Profile";
-import Payments from "./pages/Payments";
-import SquadTeams from "./pages/SquadTeams";
-import Chat from "./pages/Chat";
-import NotFound from "./pages/NotFound";
+import { AuthProvider, useAuth } from "@/lib/auth";
+import { ClubProvider, useClub } from "@/lib/club";
+import { ThemeProvider } from "@/lib/theme";
+import AuthPage from "@/pages/AuthPage";
+import OnboardingPage from "@/pages/OnboardingPage";
+import HomePage from "@/pages/HomePage";
+import GamesPage from "@/pages/GamesPage";
+import TeamsPage from "@/pages/TeamsPage";
+import TeamDetailPage from "@/pages/TeamDetailPage";
+import DuesPage from "@/pages/DuesPage";
+import ChatPage from "@/pages/ChatPage";
+import ClubPage from "@/pages/ClubPage";
+import ProfilePage from "@/pages/ProfilePage";
+import NotFoundPage from "@/pages/NotFoundPage";
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <AuthProvider>
+function Splash() {
+  return (
+    <div className="pitch-stripes flex min-h-screen items-center justify-center" aria-busy="true">
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-pitch-foreground/20 border-t-pitch-foreground" />
+      <span className="sr-only">Carregando</span>
+    </div>
+  );
+}
+
+/** Decide o que mostrar: login, criação do primeiro clube ou o app. */
+function Gate() {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return <Splash />;
+  if (!user) return <AuthPage />;
+  return (
+    <ClubProvider>
+      <LoggedIn />
+    </ClubProvider>
+  );
+}
+
+function LoggedIn() {
+  const { club, isLoading } = useClub();
+  if (isLoading) return <Splash />;
+
+  return (
+    <Switch>
+      <Route path="/comecar" component={OnboardingPage} />
+      {!club ? (
+        <Route>
+          <Redirect to="/comecar" />
+        </Route>
+      ) : (
+        <Route>
+          <AppShell>
+            <Switch>
+              <Route path="/" component={HomePage} />
+              <Route path="/jogos" component={GamesPage} />
+              <Route path="/times" component={TeamsPage} />
+              <Route path="/times/:id" component={TeamDetailPage} />
+              <Route path="/mensalidades" component={DuesPage} />
+              <Route path="/chat" component={ChatPage} />
+              <Route path="/clube" component={ClubPage} />
+              <Route path="/perfil" component={ProfilePage} />
+              <Route path="/entrar">
+                <Redirect to="/" />
+              </Route>
+              <Route component={NotFoundPage} />
+            </Switch>
+          </AppShell>
+        </Route>
+      )}
+    </Switch>
+  );
+}
+
+export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
         <TooltipProvider>
+          <AuthProvider>
+            <Gate />
+          </AuthProvider>
           <Toaster />
-          <Sonner />
-          <Switch>
-            <Route path="/" component={Home} />
-            <Route path="/auth" component={Auth} />
-            <Route path="/games" component={Games} />
-            <Route path="/team" component={Team} />
-            <Route path="/payments" component={Payments} />
-            <Route path="/squad-teams" component={SquadTeams} />
-            <Route path="/chat" component={Chat} />
-            <Route path="/profile" component={Profile} />
-            <Route component={NotFound} />
-          </Switch>
         </TooltipProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
-);
-
-export default App;
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+}

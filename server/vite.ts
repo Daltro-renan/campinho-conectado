@@ -1,57 +1,47 @@
+/** Entrega o app React: pelo Vite em desenvolvimento e pelos arquivos de build em produção. */
 import type { Express } from "express";
 import express from "express";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createServer as createViteServer } from "vite";
+import { env } from "./env";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export function log(message: string) {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-
-  console.log(`${formattedTime} [express] ${message}`);
+  const time = new Date().toLocaleTimeString("pt-BR", { hour12: false });
+  console.log(`${time} [servidor] ${message}`);
 }
 
-export async function setupVite(app: Express) {
-  const vite = await createViteServer({
-    server: { middlewareMode: true },
-    appType: "custom",
-  });
-
-  app.use(vite.middlewares);
-  app.use(async (req, res, next) => {
-    const url = req.originalUrl;
-
-    try {
-      const clientTemplate = path.resolve(__dirname, "..", "client", "index.html");
-      let template = fs.readFileSync(clientTemplate, "utf-8");
-      template = await vite.transformIndexHtml(url, template);
-
-      res.status(200).set({ "Content-Type": "text/html" }).end(template);
-    } catch (e: any) {
-      vite.ssrFixStacktrace(e);
-      next(e);
-    }
-  });
-}
-
-export function serveStatic(app: Express) {
-  const distPath = path.resolve(__dirname, "..", "dist", "public");
-
-  if (!fs.existsSync(distPath)) {
-    throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`
-    );
+export async function serveClient(app: Express) {
+  if (!env.isProduction) {
+    // Importado só em desenvolvimento: em produção o Vite nem precisa estar instalado
+    const { createServer } = await import("vite");
+    const vite = await createServer({
+      configFile: path.resolve(root, "vite.config.ts"),
+      server: { middlewareMode: true },
+      appType: "custom",
+    });
+    app.use(vite.middlewares);
+    app.use(async (req, res, next) => {
+      try {
+        const template = fs.readFileSync(path.resolve(root, "client", "index.html"), "utf-8");
+        const html = await vite.transformIndexHtml(req.originalUrl, template);
+        res.status(200).set({ "Content-Type": "text/html" }).end(html);
+      } catch (e) {
+        vite.ssrFixStacktrace(e as Error);
+        next(e);
+      }
+    });
+    return;
   }
 
-  app.use(express.static(distPath));
-
+  const distPath = path.resolve(root, "dist", "public");
+  if (!fs.existsSync(distPath)) {
+    throw new Error(`Build não encontrado em ${distPath}. Rode "npm run build" antes de iniciar.`);
+  }
+  app.use(express.static(distPath, { index: false, maxAge: "1h" }));
+  // Qualquer rota que não seja arquivo devolve o app (as rotas são tratadas no navegador)
   app.use((_req, res) => {
     res.sendFile(path.resolve(distPath, "index.html"));
   });

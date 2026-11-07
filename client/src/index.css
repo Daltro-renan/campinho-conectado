@@ -2,106 +2,109 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design System - Tema Preto e Laranja
-Todas as cores devem estar em formato HSL
-*/
-
+/*
+ * Campinho Conectado — tema "súmula de várzea".
+ * Verde gramado como base, branco-giz, e as cores dos cartões
+ * (amarelo/vermelho) reservadas para status: pendente / vencido.
+ * Todas as cores em HSL (formato do shadcn/ui).
+ */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 5%;
+    --background: 90 17% 95%; /* giz  #F1F4EE */
+    --foreground: 144 31% 11%; /* tinta #13241A */
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 5%;
-
+    --card-foreground: 144 31% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 5%;
+    --popover-foreground: 144 31% 11%;
 
-    /* Laranja vibrante como cor primária */
-    --primary: 25 100% 50%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 150 69% 18%; /* gramado #0E4D2E */
+    --primary-foreground: 90 30% 97%;
 
-    /* Preto para secundário */
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 95 16% 89%;
+    --secondary-foreground: 144 31% 14%;
 
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
+    --muted: 95 14% 91%;
+    --muted-foreground: 150 8% 36%;
 
-    /* Laranja escuro para destaques */
-    --accent: 20 95% 45%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 110 22% 88%;
+    --accent-foreground: 144 31% 11%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 5 66% 48%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 25 100% 50%;
+    --border: 100 11% 84%;
+    --input: 100 11% 80%;
+    --ring: 150 69% 24%;
 
-    --radius: 0.75rem;
-    
-    /* Gradientes modernos preto e laranja */
-    --gradient-dark: linear-gradient(135deg, hsl(0 0% 10%), hsl(0 0% 5%));
-    --gradient-orange: linear-gradient(135deg, hsl(25 100% 50%), hsl(20 95% 45%));
-    --gradient-hero: linear-gradient(135deg, hsl(0 0% 5%) 0%, hsl(20 95% 15%) 100%);
-    
-    /* Sombras */
-    --shadow-glow: 0 0 30px hsl(25 100% 50% / 0.3);
-    --shadow-card: 0 4px 20px hsl(0 0% 0% / 0.1);
+    --radius: 0.625rem;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 0 0% 20%;
-    --sidebar-primary: 0 0% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 0 0% 95%;
-    --sidebar-accent-foreground: 0 0% 10%;
-    --sidebar-border: 0 0% 90%;
-    --sidebar-ring: 25 100% 50%;
+    /* Placar / campo */
+    --pitch: 150 69% 18%;
+    --pitch-foreground: 90 30% 97%;
+    --pitch-line: 150 40% 32%;
+
+    /* Cartões */
+    --status-ok: 145 63% 30%;
+    --status-warn: 44 88% 55%; /* amarelo  #F2C230 */
+    --status-warn-foreground: 144 31% 11%;
+    --status-danger: 5 66% 48%; /* vermelho #CF3A2B */
+
+    --sidebar-background: 150 69% 15%;
+    --sidebar-foreground: 90 20% 90%;
+    --sidebar-primary: 90 30% 97%;
+    --sidebar-primary-foreground: 150 69% 15%;
+    --sidebar-accent: 150 50% 21%;
+    --sidebar-accent-foreground: 90 30% 97%;
+    --sidebar-border: 150 40% 22%;
+    --sidebar-ring: 44 88% 55%;
   }
 
   .dark {
-    --background: 0 0% 8%;
-    --foreground: 0 0% 98%;
+    --background: 150 30% 6%; /* #0B1A12 */
+    --foreground: 90 15% 92%;
 
-    --card: 0 0% 12%;
-    --card-foreground: 0 0% 98%;
+    --card: 150 26% 9%;
+    --card-foreground: 90 15% 92%;
+    --popover: 150 26% 10%;
+    --popover-foreground: 90 15% 92%;
 
-    --popover: 0 0% 10%;
-    --popover-foreground: 0 0% 98%;
+    --primary: 145 50% 46%;
+    --primary-foreground: 150 30% 6%;
 
-    /* Laranja mais brilhante no dark mode */
-    --primary: 25 100% 55%;
-    --primary-foreground: 0 0% 5%;
+    --secondary: 150 18% 15%;
+    --secondary-foreground: 90 15% 92%;
 
-    --secondary: 0 0% 18%;
-    --secondary-foreground: 0 0% 98%;
+    --muted: 150 18% 13%;
+    --muted-foreground: 100 8% 62%;
 
-    --muted: 0 0% 20%;
-    --muted-foreground: 0 0% 65%;
+    --accent: 150 20% 16%;
+    --accent-foreground: 90 15% 92%;
 
-    /* Laranja vibrante para destaques no dark */
-    --accent: 25 100% 50%;
-    --accent-foreground: 0 0% 5%;
+    --destructive: 5 70% 56%;
+    --destructive-foreground: 0 0% 100%;
 
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 98%;
+    --border: 150 16% 17%;
+    --input: 150 16% 21%;
+    --ring: 145 50% 46%;
 
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 25 100% 55%;
-    
-    --shadow-glow: 0 0 40px hsl(25 100% 50% / 0.4);
-    --shadow-card: 0 4px 20px hsl(0 0% 0% / 0.5);
-    
-    --sidebar-background: 0 0% 10%;
-    --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 25 100% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 15%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 0 0% 18%;
-    --sidebar-ring: 25 100% 50%;
+    --pitch: 150 55% 13%;
+    --pitch-foreground: 90 30% 96%;
+    --pitch-line: 150 35% 24%;
+
+    --status-ok: 145 50% 48%;
+    --status-warn: 44 88% 58%;
+    --status-warn-foreground: 150 30% 6%;
+    --status-danger: 5 72% 60%;
+
+    --sidebar-background: 150 32% 8%;
+    --sidebar-foreground: 90 15% 85%;
+    --sidebar-primary: 145 50% 46%;
+    --sidebar-primary-foreground: 150 30% 6%;
+    --sidebar-accent: 150 20% 13%;
+    --sidebar-accent-foreground: 90 15% 95%;
+    --sidebar-border: 150 16% 14%;
+    --sidebar-ring: 44 88% 58%;
   }
 }
 
@@ -110,7 +113,60 @@ Todas as cores devem estar em formato HSL
     @apply border-border;
   }
 
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "tnum" 1; /* números alinhados em tabelas e placares */
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-tight;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Marcações do campo: linha do meio e círculo central, bem discretas */
+  .pitch-markings {
+    background-color: hsl(var(--pitch));
+    background-image:
+      radial-gradient(circle at 50% 50%, transparent 46px, hsl(var(--pitch-line)) 47px, hsl(var(--pitch-line)) 48px, transparent 49px),
+      linear-gradient(90deg, transparent calc(50% - 1px), hsl(var(--pitch-line)) calc(50% - 1px), hsl(var(--pitch-line)) calc(50% + 1px), transparent calc(50% + 1px));
+  }
+
+  /* Faixas de grama cortada — usadas no cabeçalho da tela de login */
+  .pitch-stripes {
+    background-color: hsl(var(--pitch));
+    background-image: repeating-linear-gradient(
+      90deg,
+      transparent 0 56px,
+      hsl(0 0% 100% / 0.035) 56px 112px
+    );
+  }
+
+  .scoreline {
+    @apply font-display font-bold leading-none tabular-nums;
+  }
+
+  /* Área segura no iPhone (barra inferior) */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }

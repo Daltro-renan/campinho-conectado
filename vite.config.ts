@@ -1,74 +1,62 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
+import { fileURLToPath } from "url";
 import { VitePWA } from "vite-plugin-pwa";
 import tailwindcss from "tailwindcss";
 import autoprefixer from "autoprefixer";
 
-export default defineConfig(({ mode }) => ({
-  root: path.resolve(__dirname, "client"),
-  publicDir: path.resolve(__dirname, "public"),
-  build: {
-    outDir: path.resolve(__dirname, "dist/public"),
-    emptyOutDir: true,
-  },
-  server: {
-    host: "0.0.0.0",
-    port: 5000,
-    strictPort: true,
+const root = path.dirname(fileURLToPath(import.meta.url));
 
-    // 👇 Adicione esta parte para liberar o domínio do Replit
-    allowedHosts: [
-      ".replit.dev", // permite qualquer subdomínio do Replit
-    ],
+export default defineConfig({
+  root: path.resolve(root, "client"),
+  publicDir: path.resolve(root, "public"),
+  envDir: root,
+  build: {
+    outDir: path.resolve(root, "dist/public"),
+    emptyOutDir: true,
   },
   css: {
     postcss: {
-      plugins: [tailwindcss(), autoprefixer()],
+      plugins: [tailwindcss({ config: path.resolve(root, "tailwind.config.ts") }), autoprefixer()],
     },
+  },
+  server: {
+    // Necessário para rodar dentro do Replit ou de outros ambientes com proxy
+    allowedHosts: true,
   },
   plugins: [
     react(),
-    mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.png", "icon-192.png", "icon-512.png"],
       manifest: {
         name: "Campinho Conectado",
         short_name: "Campinho",
-        description: "Aplicativo de gestão para associação de futebol amador",
-        theme_color: "#10b981",
-        background_color: "#0a0a0a",
+        description: "Gestão do seu clube de futebol: jogos, elenco, mensalidades e chat.",
+        lang: "pt-BR",
+        theme_color: "#0E4D2E",
+        background_color: "#0B1A12",
         display: "standalone",
         orientation: "portrait",
         scope: "/",
         start_url: "/",
         icons: [
-          {
-            src: "/icon-192.png",
-            sizes: "192x192",
-            type: "image/png",
-            purpose: "any maskable",
-          },
-          {
-            src: "/icon-512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable",
-          },
+          { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
+          { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
         ],
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
-        runtimeCaching: [],
+        // A API nunca deve vir do cache
+        navigateFallbackDenylist: [/^\/api\//],
       },
     }),
-  ].filter(Boolean),
+  ],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./client/src"),
-      "@shared": path.resolve(__dirname, "./shared"),
+      "@": path.resolve(root, "client/src"),
+      "@shared": path.resolve(root, "shared"),
     },
   },
-}));
+});

@@ -1,264 +1,206 @@
-import { pgTable, text, timestamp, serial, integer, boolean, date } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
+/**
+ * Banco de dados do Campinho Conectado (PostgreSQL + Drizzle ORM).
+ *
+ * Tudo pertence a um clube: um usuário pode participar de vários clubes,
+ * com um cargo diferente em cada um (tabela `memberships`).
+ */
+import {
+  pgTable,
+  serial,
+  text,
+  integer,
+  boolean,
+  timestamp,
+  date,
+  uniqueIndex,
+  index,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
-  password: text("password").notNull(),
-  fullName: text("full_name"),
-  role: text("role").notNull().default("player"),
-  globalRole: text("global_role").notNull().default("member"),
-  avatar: text("avatar"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const teams = pgTable("teams", {
-  id: serial("id").primaryKey(),
-  clubId: integer("club_id").references(() => clubs.id).notNull(),
+  passwordHash: text("password_hash").notNull(),
   name: text("name").notNull(),
-  abbreviation: text("abbreviation"),
-  logo: text("logo"),
-  colorPrimary: text("color_primary"),
-  colorSecondary: text("color_secondary"),
-  city: text("city"),
-  state: text("state"),
-  founded: date("founded"),
-  description: text("description"),
-  wins: integer("wins").notNull().default(0),
-  draws: integer("draws").notNull().default(0),
-  losses: integer("losses").notNull().default(0),
-  goalsFor: integer("goals_for").notNull().default(0),
-  goalsAgainst: integer("goals_against").notNull().default(0),
-  createdBy: integer("created_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const players = pgTable("players", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
-  teamId: integer("team_id").references(() => teams.id),
-  squadTeamId: integer("squad_team_id").references(() => squadTeams.id),
-  name: text("name").notNull(),
-  position: text("position").notNull(),
-  jerseyNumber: integer("jersey_number"),
-  photo: text("photo"),
-  status: text("status").notNull().default("active"),
-  teamRole: text("team_role").notNull().default("jogador"),
-  goals: integer("goals").notNull().default(0),
-  assists: integer("assists").notNull().default(0),
-  yellowCards: integer("yellow_cards").notNull().default(0),
-  redCards: integer("red_cards").notNull().default(0),
-  gamesPlayed: integer("games_played").notNull().default(0),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const games = pgTable("games", {
-  id: serial("id").primaryKey(),
-  clubId: integer("club_id").references(() => clubs.id).notNull(),
-  homeTeamId: integer("home_team_id").references(() => squadTeams.id).notNull(),
-  awayTeamId: integer("away_team_id").references(() => squadTeams.id).notNull(),
-  homeScore: integer("home_score").default(0),
-  awayScore: integer("away_score").default(0),
-  gameDate: timestamp("game_date").notNull(),
-  location: text("location"),
-  status: text("status").notNull().default("scheduled"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const news = pgTable("news", {
-  id: serial("id").primaryKey(),
-  clubId: integer("club_id").references(() => clubs.id).notNull(),
-  title: text("title").notNull(),
-  content: text("content").notNull(),
-  image: text("image"),
-  authorId: integer("author_id").references(() => users.id),
-  published: boolean("published").notNull().default(false),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const payments = pgTable("payments", {
-  id: serial("id").primaryKey(),
-  playerId: integer("player_id").references(() => players.id).notNull(),
-  amount: integer("amount").notNull(),
-  dueDate: date("due_date").notNull(),
-  paidDate: date("paid_date"),
-  status: text("status").notNull().default("pending"),
-  month: integer("month").notNull(),
-  year: integer("year").notNull(),
-  paymentMethod: text("payment_method"),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const squadTeams = pgTable("squad_teams", {
-  id: serial("id").primaryKey(),
-  clubId: integer("club_id").references(() => clubs.id).notNull(),
-  name: text("name").notNull(),
-  abbreviation: text("abbreviation"),
-  category: text("category").notNull(),
-  description: text("description"),
-  coachId: integer("coach_id").references(() => users.id),
-  createdBy: integer("created_by").references(() => users.id).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const messages = pgTable("messages", {
-  id: serial("id").primaryKey(),
-  clubId: integer("club_id").references(() => clubs.id).notNull(),
-  authorId: integer("author_id").references(() => users.id).notNull(),
-  channel: text("channel").notNull(),
-  content: text("content").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  avatarUrl: text("avatar_url"),
+  phone: text("phone"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const clubs = pgTable("clubs", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  abbreviation: text("abbreviation").notNull(),
+  city: text("city"),
+  state: text("state"),
+  foundedYear: integer("founded_year"),
   description: text("description"),
-  logo: text("logo"),
-  foundedDate: date("founded_date"),
-  colors: text("colors"),
-  createdBy: integer("created_by").references(() => users.id).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  logoUrl: text("logo_url"),
+  colorPrimary: text("color_primary").notNull().default("#0E4D2E"),
+  colorSecondary: text("color_secondary").notNull().default("#F5F7F2"),
+  /** Valor da mensalidade em centavos (R$ 50,00 = 5000) */
+  monthlyFee: integer("monthly_fee").notNull().default(0),
+  /** Dia do mês em que a mensalidade vence (1 a 28) */
+  dueDay: integer("due_day").notNull().default(10),
+  /** Chave PIX exibida para os associados pagarem */
+  pixKey: text("pix_key"),
+  inviteCode: text("invite_code").notNull().unique(),
+  createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const memberships = pgTable("memberships", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  clubId: integer("club_id").references(() => clubs.id).notNull(),
-  role: text("role").notNull().default("jogador"),
-  joinedAt: timestamp("joined_at").defaultNow().notNull(),
-});
+export const memberships = pgTable(
+  "memberships",
+  {
+    id: serial("id").primaryKey(),
+    clubId: integer("club_id").notNull().references(() => clubs.id, { onDelete: "cascade" }),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("jogador"),
+    /** Associados isentos não recebem mensalidade */
+    feeExempt: boolean("fee_exempt").notNull().default(false),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("memberships_club_user_idx").on(t.clubId, t.userId)],
+);
 
-export const insertUserSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-  fullName: z.string().optional(),
-  role: z.enum(["presidente", "diretoria", "tecnico", "jogador", "player"]).optional(),
-  globalRole: z.enum(["admin", "member"]).optional(),
-  avatar: z.string().optional(),
-}).strict();
+/** Times/categorias do clube (ex.: Principal, Sub-17, Veteranos) */
+export const teams = pgTable(
+  "teams",
+  {
+    id: serial("id").primaryKey(),
+    clubId: integer("club_id").notNull().references(() => clubs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    abbreviation: text("abbreviation").notNull(),
+    category: text("category").notNull().default("Principal"),
+    colorPrimary: text("color_primary").notNull().default("#0E4D2E"),
+    colorSecondary: text("color_secondary").notNull().default("#F5F7F2"),
+    description: text("description"),
+    coachUserId: integer("coach_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("teams_club_idx").on(t.clubId)],
+);
 
-export const insertTeamSchema = z.object({
-  clubId: z.number(),
-  name: z.string().min(1, "Nome é obrigatório"),
-  abbreviation: z.string().optional(),
-  logo: z.string().optional(),
-  colorPrimary: z.string().optional(),
-  colorSecondary: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  founded: z.string().optional(),
-  description: z.string().optional(),
-  createdBy: z.number().optional(),
-}).strict();
+export const players = pgTable(
+  "players",
+  {
+    id: serial("id").primaryKey(),
+    clubId: integer("club_id").notNull().references(() => clubs.id, { onDelete: "cascade" }),
+    teamId: integer("team_id").references(() => teams.id, { onDelete: "set null" }),
+    /** Associado vinculado a este jogador (opcional) */
+    userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    nickname: text("nickname"),
+    position: text("position").notNull(),
+    shirtNumber: integer("shirt_number"),
+    status: text("status").notNull().default("ativo"),
+    isCaptain: boolean("is_captain").notNull().default(false),
+    goals: integer("goals").notNull().default(0),
+    assists: integer("assists").notNull().default(0),
+    yellowCards: integer("yellow_cards").notNull().default(0),
+    redCards: integer("red_cards").notNull().default(0),
+    gamesPlayed: integer("games_played").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("players_club_idx").on(t.clubId), index("players_team_idx").on(t.teamId)],
+);
 
-export const insertPlayerSchema = z.object({
-  userId: z.number().optional(),
-  teamId: z.number().optional(),
-  squadTeamId: z.number().optional(),
-  name: z.string().min(1),
-  position: z.string().min(1),
-  jerseyNumber: z.number().optional(),
-  photo: z.string().optional(),
-  status: z.enum(["active", "inactive"]).optional(),
-  teamRole: z.enum(["capitao", "diretor_time", "jogador"]).optional(),
-}).strict();
+/**
+ * Jogos de um time do clube. O adversário pode ser outro time do próprio clube
+ * (`opponentTeamId`) ou um time de fora (`opponentName`).
+ */
+export const games = pgTable(
+  "games",
+  {
+    id: serial("id").primaryKey(),
+    clubId: integer("club_id").notNull().references(() => clubs.id, { onDelete: "cascade" }),
+    teamId: integer("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+    opponentTeamId: integer("opponent_team_id").references(() => teams.id, { onDelete: "set null" }),
+    opponentName: text("opponent_name"),
+    isHome: boolean("is_home").notNull().default(true),
+    competition: text("competition").notNull().default("amistoso"),
+    competitionName: text("competition_name"),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    location: text("location"),
+    status: text("status").notNull().default("agendado"),
+    teamScore: integer("team_score"),
+    opponentScore: integer("opponent_score"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("games_club_starts_idx").on(t.clubId, t.startsAt)],
+);
 
-export const insertGameSchema = z.object({
-  clubId: z.number(),
-  homeTeamId: z.number(),
-  awayTeamId: z.number(),
-  gameDate: z.string().transform((val) => new Date(val)),
-  location: z.string().optional(),
-}).strict();
+/** Confirmação de presença dos associados em cada jogo */
+export const attendances = pgTable(
+  "attendances",
+  {
+    id: serial("id").primaryKey(),
+    gameId: integer("game_id").notNull().references(() => games.id, { onDelete: "cascade" }),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    status: text("status").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("attendances_game_user_idx").on(t.gameId, t.userId)],
+);
 
-export const insertNewsSchema = z.object({
-  clubId: z.number(),
-  title: z.string().min(1),
-  content: z.string().min(1),
-  image: z.string().optional(),
-  authorId: z.number().optional(),
-}).strict();
+/** Mensalidades: uma por associado por mês de referência */
+export const dues = pgTable(
+  "dues",
+  {
+    id: serial("id").primaryKey(),
+    clubId: integer("club_id").notNull().references(() => clubs.id, { onDelete: "cascade" }),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    /** Mês de referência no formato AAAA-MM */
+    referenceMonth: text("reference_month").notNull(),
+    /** Valor em centavos */
+    amount: integer("amount").notNull(),
+    dueDate: date("due_date").notNull(),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    method: text("method"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("dues_club_user_month_idx").on(t.clubId, t.userId, t.referenceMonth),
+    index("dues_club_idx").on(t.clubId),
+  ],
+);
 
-export const insertPaymentSchema = z.object({
-  playerId: z.number(),
-  amount: z.number(),
-  dueDate: z.string(),
-  paidDate: z.string().optional(),
-  status: z.enum(["pending", "paid", "overdue"]).optional(),
-  month: z.number().min(1).max(12),
-  year: z.number(),
-  paymentMethod: z.enum(["pix", "credit_card", "debit_card", "cash"]).optional(),
-  notes: z.string().optional(),
-}).strict();
+export const messages = pgTable(
+  "messages",
+  {
+    id: serial("id").primaryKey(),
+    clubId: integer("club_id").notNull().references(() => clubs.id, { onDelete: "cascade" }),
+    userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+    channel: text("channel").notNull(),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("messages_club_channel_idx").on(t.clubId, t.channel, t.id)],
+);
 
-export const insertSquadTeamSchema = z.object({
-  clubId: z.number(),
-  name: z.string().min(1),
-  abbreviation: z.string().optional(),
-  category: z.string().min(1),
-  description: z.string().optional(),
-  coachId: z.number().optional(),
-  createdBy: z.number(),
-}).strict();
-
-export const insertMessageSchema = z.object({
-  clubId: z.number(),
-  authorId: z.number(),
-  channel: z.enum(["diretoria", "tecnicos", "geral"]),
-  content: z.string().min(1).max(1000),
-}).strict();
-
-export const insertClubSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  logo: z.string().optional(),
-  foundedDate: z.string().optional(),
-  colors: z.string().optional(),
-  createdBy: z.number(),
-}).strict();
-
-export const insertMembershipSchema = z.object({
-  userId: z.number(),
-  clubId: z.number(),
-  role: z.enum(["presidente", "diretoria", "tecnico", "jogador"]).optional(),
-}).strict();
-
-export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-});
+/** Mural de avisos da diretoria */
+export const notices = pgTable(
+  "notices",
+  {
+    id: serial("id").primaryKey(),
+    clubId: integer("club_id").notNull().references(() => clubs.id, { onDelete: "cascade" }),
+    authorId: integer("author_id").references(() => users.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    pinned: boolean("pinned").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("notices_club_idx").on(t.clubId)],
+);
 
 export type User = typeof users.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type LoginCredentials = z.infer<typeof loginSchema>;
-export type PublicUser = Omit<User, "password">;
-
-export type Team = typeof teams.$inferSelect;
-export type InsertTeam = z.infer<typeof insertTeamSchema>;
-
-export type Player = typeof players.$inferSelect;
-export type InsertPlayer = z.infer<typeof insertPlayerSchema>;
-
-export type Game = typeof games.$inferSelect;
-export type InsertGame = z.infer<typeof insertGameSchema>;
-
-export type News = typeof news.$inferSelect;
-export type InsertNews = z.infer<typeof insertNewsSchema>;
-
-export type Payment = typeof payments.$inferSelect;
-export type InsertPayment = z.infer<typeof insertPaymentSchema>;
-
-export type SquadTeam = typeof squadTeams.$inferSelect;
-export type InsertSquadTeam = z.infer<typeof insertSquadTeamSchema>;
-
-export type Message = typeof messages.$inferSelect;
-export type InsertMessage = z.infer<typeof insertMessageSchema>;
-
 export type Club = typeof clubs.$inferSelect;
-export type InsertClub = z.infer<typeof insertClubSchema>;
-
 export type Membership = typeof memberships.$inferSelect;
-export type InsertMembership = z.infer<typeof insertMembershipSchema>;
+export type Team = typeof teams.$inferSelect;
+export type Player = typeof players.$inferSelect;
+export type Game = typeof games.$inferSelect;
+export type Attendance = typeof attendances.$inferSelect;
+export type Due = typeof dues.$inferSelect;
+export type Message = typeof messages.$inferSelect;
+export type Notice = typeof notices.$inferSelect;
