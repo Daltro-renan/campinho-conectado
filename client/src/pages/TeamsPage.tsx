@@ -6,7 +6,7 @@ import type { MemberDTO, TeamDTO } from "@shared/api";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState, LoadingRows } from "@/components/EmptyState";
-import { TeamCrest } from "@/components/TeamCrest";
+import { ClubTeamCrest } from "@/components/TeamCrest";
 import { TeamFormDialog } from "@/components/squad/TeamFormDialog";
 import { api } from "@/lib/api";
 import { useActiveClub } from "@/lib/club";
@@ -61,7 +61,7 @@ export default function TeamsPage() {
           {teams.data!.map((t) => (
             <li key={t.id}>
               <Link href={`/times/${t.id}`} className="flex items-center gap-4 px-4 py-4 hover:bg-accent/50">
-                <TeamCrest
+                <ClubTeamCrest
                   abbreviation={t.abbreviation}
                   colorPrimary={t.colorPrimary}
                   colorSecondary={t.colorSecondary}

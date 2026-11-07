@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/Field";
-import { TeamCrest } from "@/components/TeamCrest";
+import { ClubTeamCrest } from "@/components/TeamCrest";
 import { ColorField } from "@/components/ColorField";
 import { api } from "@/lib/api";
 import { useActiveClub } from "@/lib/club";
@@ -67,7 +67,7 @@ export function TeamFormDialog({
           }}
         >
           <div className="flex items-center gap-4 rounded-lg bg-muted p-3">
-            <TeamCrest
+            <ClubTeamCrest
               abbreviation={form.abbreviation || "?"}
               colorPrimary={form.colorPrimary}
               colorSecondary={form.colorSecondary}

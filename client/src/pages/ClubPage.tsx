@@ -15,6 +15,8 @@ import { LoadingRows } from "@/components/EmptyState";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import { Field } from "@/components/Field";
 import { ColorField } from "@/components/ColorField";
+import { CrestEditor } from "@/components/CrestEditor";
+import type { CrestShape } from "@shared/validation";
 import { TeamCrest } from "@/components/TeamCrest";
 import { UserAvatar } from "@/components/UserAvatar";
 import { MercadoPagoConnect } from "@/components/dues/MercadoPagoConnect";
@@ -42,7 +44,7 @@ export default function ClubPage() {
 function ClubSummary({ club }: { club: MyClub }) {
   return (
     <section className="flex items-center gap-4 rounded-lg border bg-card p-5">
-      <TeamCrest abbreviation={club.abbreviation} colorPrimary={club.colorPrimary} colorSecondary={club.colorSecondary} size={56} />
+      <TeamCrest abbreviation={club.abbreviation} colorPrimary={club.colorPrimary} colorSecondary={club.colorSecondary} logoUrl={club.logoUrl} shape={club.crestShape} size={56} />
       <div className="min-w-0">
         <p className="font-display text-2xl font-semibold">{club.name}</p>
         <p className="text-sm text-muted-foreground">
@@ -72,6 +74,8 @@ function ClubForm() {
     colorPrimary: c.colorPrimary,
     colorSecondary: c.colorSecondary,
     monthlyFee: c.monthlyFee > 0 ? centsToInput(c.monthlyFee) : "",
+    logoUrl: c.logoUrl ?? null,
+    crestShape: (c.crestShape as CrestShape) ?? "classico",
     dueDay: String(c.dueDay),
     pixKey: c.pixKey ?? "",
   });
@@ -100,10 +104,14 @@ function ClubForm() {
         save.mutate(undefined);
       }}
     >
-      <div className="flex items-center gap-4">
-        <TeamCrest abbreviation={form.abbreviation || "?"} colorPrimary={form.colorPrimary} colorSecondary={form.colorSecondary} size={52} />
-        <p className="font-display text-2xl font-semibold">{form.name || "Nome do clube"}</p>
-      </div>
+      <CrestEditor
+        abbreviation={form.abbreviation}
+        colorPrimary={form.colorPrimary}
+        colorSecondary={form.colorSecondary}
+        logoUrl={form.logoUrl}
+        shape={form.crestShape}
+        onChange={(next) => setForm({ ...form, ...next })}
+      />
       <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
         <Field label="Nome" htmlFor="c-name">
           <Input id="c-name" value={form.name} onChange={set("name")} required />

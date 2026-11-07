@@ -8,7 +8,8 @@ const app = express();
 app.disable("x-powered-by");
 // Atrás de proxy (Render, Railway, Replit) para o IP real chegar no limitador de login
 app.set("trust proxy", 1);
-app.use(express.json({ limit: "200kb" }));
+// 1 MB: comporta o logo do clube enviado como imagem
+app.use(express.json({ limit: "1mb" }));
 
 // O app nativo (Capacitor) roda em https://localhost e chama a API deste servidor.
 // O login usa token no cabeçalho (sem cookies), então liberar a origem é seguro.

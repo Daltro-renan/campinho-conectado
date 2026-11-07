@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { SectionTitle } from "@/components/PageHeader";
 import { EmptyState, LoadingRows } from "@/components/EmptyState";
 import { ConfirmAction } from "@/components/ConfirmAction";
-import { TeamCrest } from "@/components/TeamCrest";
+import { ClubTeamCrest } from "@/components/TeamCrest";
 import { TeamFormDialog } from "@/components/squad/TeamFormDialog";
 import { PlayerFormDialog } from "@/components/squad/PlayerFormDialog";
 import { GameRow } from "@/components/games/GameRow";
@@ -89,7 +89,7 @@ export default function TeamDetailPage() {
       >
         <div className="absolute inset-0 bg-black/25" aria-hidden />
         <div className="relative flex items-center gap-4">
-          <TeamCrest abbreviation={t.abbreviation} colorPrimary={t.colorPrimary} colorSecondary={t.colorSecondary} size={64} />
+          <ClubTeamCrest abbreviation={t.abbreviation} colorPrimary={t.colorPrimary} colorSecondary={t.colorSecondary} size={64} />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-3xl font-bold md:text-4xl">{t.name}</h1>
             <p className="text-white/85">

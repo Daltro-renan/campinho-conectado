@@ -32,6 +32,8 @@ export function ClubSwitcher({ variant = "sidebar" }: { variant?: "sidebar" | "t
           abbreviation={club.abbreviation}
           colorPrimary={club.colorPrimary}
           colorSecondary={club.colorSecondary}
+          logoUrl={club.logoUrl}
+          shape={club.crestShape}
           size={variant === "sidebar" ? 34 : 28}
         />
         <span className="min-w-0 flex-1">
@@ -55,6 +57,8 @@ export function ClubSwitcher({ variant = "sidebar" }: { variant?: "sidebar" | "t
               abbreviation={c.abbreviation}
               colorPrimary={c.colorPrimary}
               colorSecondary={c.colorSecondary}
+              logoUrl={c.logoUrl}
+              shape={c.crestShape}
               size={22}
             />
             <span className="min-w-0 flex-1">

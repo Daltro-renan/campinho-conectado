@@ -91,7 +91,7 @@ function MyClubs() {
               onClick={() => selectClub(c.id)}
               className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-accent/50"
             >
-              <TeamCrest abbreviation={c.abbreviation} colorPrimary={c.colorPrimary} colorSecondary={c.colorSecondary} size={28} />
+              <TeamCrest abbreviation={c.abbreviation} colorPrimary={c.colorPrimary} colorSecondary={c.colorSecondary} logoUrl={c.logoUrl} shape={c.crestShape} size={28} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{c.name}</span>
                 <span className="block text-xs text-muted-foreground">

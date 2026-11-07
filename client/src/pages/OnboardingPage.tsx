@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Field } from "@/components/Field";
 import { TeamCrest } from "@/components/TeamCrest";
 import { ColorField } from "@/components/ColorField";
+import { CrestEditor } from "@/components/CrestEditor";
+import type { CrestShape } from "@shared/validation";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useClub } from "@/lib/club";
@@ -30,6 +32,8 @@ export default function OnboardingPage() {
     state: "",
     colorPrimary: "#0E4D2E",
     colorSecondary: "#F2C230",
+    logoUrl: null as string | null,
+    crestShape: "classico" as CrestShape,
   });
 
   const done = (created: MyClub, message: string) => {
@@ -133,6 +137,8 @@ export default function OnboardingPage() {
             <BackButton onClick={() => setStep("escolha")} />
             <div className="flex items-center gap-4 rounded-lg border bg-card p-4">
               <TeamCrest
+                logoUrl={club.logoUrl}
+                shape={club.crestShape}
                 abbreviation={club.abbreviation || "?"}
                 colorPrimary={club.colorPrimary}
                 colorSecondary={club.colorSecondary}
@@ -178,6 +184,14 @@ export default function OnboardingPage() {
                 />
               </div>
             </div>
+            <CrestEditor
+              abbreviation={club.abbreviation}
+              colorPrimary={club.colorPrimary}
+              colorSecondary={club.colorSecondary}
+              logoUrl={club.logoUrl}
+              shape={club.crestShape}
+              onChange={(next) => setClub({ ...club, ...next })}
+            />
             <div className="grid grid-cols-[1fr_5rem] gap-3">
               <Field label="Cidade" htmlFor="club-city">
                 <Input id="club-city" value={club.city} onChange={(e) => setClub({ ...club, city: e.target.value })} />

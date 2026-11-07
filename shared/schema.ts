@@ -36,7 +36,10 @@ export const clubs = pgTable("clubs", {
   state: text("state"),
   foundedYear: integer("founded_year"),
   description: text("description"),
+  /** Logo da associação: imagem (data URL, até ~300 KB) recortada no formato do escudo */
   logoUrl: text("logo_url"),
+  /** Formato do escudo: classico | moderno | pontudo | redondo | hexagono */
+  crestShape: text("crest_shape").notNull().default("classico"),
   colorPrimary: text("color_primary").notNull().default("#0E4D2E"),
   colorSecondary: text("color_secondary").notNull().default("#F5F7F2"),
   /** Valor da mensalidade em centavos (R$ 50,00 = 5000) */

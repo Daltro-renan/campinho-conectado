@@ -1,12 +1,12 @@
 import type { GameDTO } from "@shared/api";
-import { OpponentCrest, TeamCrest } from "@/components/TeamCrest";
+import { ClubTeamCrest, OpponentCrest } from "@/components/TeamCrest";
 
 /** Mandante e visitante na ordem certa (o time do clube pode jogar fora de casa) */
 export function gameSides(game: GameDTO) {
   const ours = {
     name: game.team.name,
     crest: (size: number) => (
-      <TeamCrest
+      <ClubTeamCrest
         abbreviation={game.team.abbreviation}
         colorPrimary={game.team.colorPrimary}
         colorSecondary={game.team.colorSecondary}
@@ -20,7 +20,7 @@ export function gameSides(game: GameDTO) {
     name: opponentName,
     crest: (size: number) =>
       game.opponentTeam ? (
-        <TeamCrest
+        <ClubTeamCrest
           abbreviation={game.opponentTeam.abbreviation}
           colorPrimary={game.opponentTeam.colorPrimary}
           colorSecondary={game.opponentTeam.colorSecondary}

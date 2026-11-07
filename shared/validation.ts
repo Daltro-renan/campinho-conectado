@@ -60,6 +60,25 @@ export const deleteAccountSchema = z.object({
 
 // ---------- Clube ----------
 
+export const CREST_SHAPES = ["classico", "moderno", "pontudo", "redondo", "hexagono"] as const;
+export type CrestShape = (typeof CREST_SHAPES)[number];
+export const CREST_SHAPE_LABELS: Record<CrestShape, string> = {
+  classico: "Clássico",
+  moderno: "Moderno",
+  pontudo: "Pontudo",
+  redondo: "Redondo",
+  hexagono: "Hexágono",
+};
+
+/** Logo enviado pelo app (imagem em data URL, já reduzida) ou um endereço https */
+const logoImage = z
+  .string()
+  .max(400_000, "Imagem muito grande. Use uma imagem menor.")
+  .refine((v) => /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(v) || /^https:\/\//.test(v), "Imagem inválida")
+  .optional()
+  .nullable()
+  .or(z.literal("").transform(() => null));
+
 export const clubSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome do clube").max(80),
   abbreviation: z
@@ -72,7 +91,8 @@ export const clubSchema = z.object({
   state: optionalText(2).transform((v) => (typeof v === "string" ? v.toUpperCase() : v)),
   foundedYear: z.coerce.number().int().min(1850).max(2100).optional().nullable(),
   description: optionalText(500),
-  logoUrl: optionalUrl,
+  logoUrl: logoImage,
+  crestShape: z.enum(CREST_SHAPES).optional(),
   colorPrimary: hexColor.optional(),
   colorSecondary: hexColor.optional(),
   monthlyFee: z.coerce.number().int().min(0).max(10_000_00).optional(),
