@@ -1,0 +1,52 @@
+# Verifica o código e gera o app Android (APK) a cada envio.
+# O APK fica em "Actions" → execução → "Artifacts" → campinho-conectado-apk.
+# Para apontar o app para o servidor publicado, defina a variável do
+# repositório API_URL (Settings → Secrets and variables → Actions → Variables).
+name: Build
+
+on:
+  push:
+    branches: [main, reestruturacao]
+  workflow_dispatch:
+
+jobs:
+  web:
+    name: Verificar e compilar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - run: npm run check
+      - run: npm run build
+        env:
+          VITE_API_URL: ${{ vars.API_URL }}
+
+  android:
+    name: App Android (APK)
+    needs: web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+        env:
+          VITE_API_URL: ${{ vars.API_URL }}
+      - run: npx cap add android
+      - run: npx cap sync android
+      - name: Gerar APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: campinho-conectado-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
