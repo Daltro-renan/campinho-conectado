@@ -19,7 +19,8 @@ export function apiRouter() {
   const api = Router();
 
   api.get("/health", (_req, res) => {
-    res.json({ ok: true });
+    // O Render informa o commit publicado; serve para conferir se o deploy automático chegou
+    res.json({ ok: true, version: (process.env.RENDER_GIT_COMMIT ?? "local").slice(0, 7) });
   });
 
   /** Configuração pública lida pelo app ao abrir (ex.: ID do login Google) */
