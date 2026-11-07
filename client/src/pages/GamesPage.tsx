@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarPlus, CalendarX, Shield } from "lucide-react";
-import { Link } from "wouter";
-import type { GameDTO, TeamDTO } from "@shared/api";
+import { CalendarPlus, CalendarX } from "lucide-react";
+import type { GameDTO } from "@shared/api";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/PageHeader";
@@ -31,10 +30,6 @@ export default function GamesPage() {
     queryKey: key("games", when),
     queryFn: () => api.get<GameDTO[]>(clubPath(`/games?when=${when}`)),
   });
-  const teams = useQuery({
-    queryKey: key("teams"),
-    queryFn: () => api.get<TeamDTO[]>(clubPath("/teams")),
-  });
 
   const cancel = useClubMutation(
     (game: GameDTO) => api.patch(clubPath(`/games/${game.id}`), { status: "cancelado" }),
@@ -45,7 +40,6 @@ export default function GamesPage() {
     onSuccess: () => setDeleting(null),
   });
 
-  const hasTeams = (teams.data?.length ?? 0) > 0;
   const openNew = () => {
     setEditing(null);
     setFormOpen(true);
@@ -56,7 +50,7 @@ export default function GamesPage() {
       <PageHeader
         title="Jogos"
         actions={
-          manage && hasTeams ? (
+          manage ? (
             <Button onClick={openNew}>
               <CalendarPlus className="mr-2 h-4 w-4" /> Marcar jogo
             </Button>
@@ -73,17 +67,6 @@ export default function GamesPage() {
 
       {games.isLoading ? (
         <LoadingRows />
-      ) : !hasTeams && manage ? (
-        <EmptyState
-          icon={Shield}
-          title="Cadastre um time primeiro"
-          description="Os jogos são marcados para os times do clube (Principal, Sub-17, Veteranos…)."
-          action={
-            <Button asChild>
-              <Link href="/times">Cadastrar time</Link>
-            </Button>
-          }
-        />
       ) : (games.data?.length ?? 0) === 0 ? (
         <EmptyState
           icon={CalendarX}
@@ -131,7 +114,7 @@ export default function GamesPage() {
 
       {manage ? (
         <>
-          <GameFormDialog open={formOpen} onOpenChange={setFormOpen} teams={teams.data ?? []} game={editing} />
+          <GameFormDialog open={formOpen} onOpenChange={setFormOpen} game={editing} />
           <ResultDialog game={resultFor} onOpenChange={(open) => !open && setResultFor(null)} />
           {deleting ? (
             <DeleteGameDialog game={deleting} onCancel={() => setDeleting(null)} onConfirm={() => remove.mutate(deleting)} />
@@ -152,13 +135,13 @@ function DeleteGameDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  const opponent = game.opponentTeam?.name ?? game.opponentName ?? "adversário";
+  const opponent = game.opponentName ?? "adversário";
   return (
     <ConfirmAction
       open
       onOpenChange={(open) => !open && onCancel()}
       title="Excluir este jogo?"
-      description={`${game.team.name} x ${opponent} será apagado junto com as confirmações de presença. Para manter o histórico, prefira cancelar o jogo.`}
+      description={`O jogo contra ${opponent} será apagado junto com as confirmações de presença. Para manter o histórico, prefira cancelar o jogo.`}
       confirmLabel="Excluir jogo"
       onConfirm={onConfirm}
     />

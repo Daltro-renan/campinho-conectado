@@ -11,8 +11,8 @@ import AuthPage from "@/pages/AuthPage";
 import OnboardingPage from "@/pages/OnboardingPage";
 import HomePage from "@/pages/HomePage";
 import GamesPage from "@/pages/GamesPage";
-import TeamsPage from "@/pages/TeamsPage";
-import TeamDetailPage from "@/pages/TeamDetailPage";
+import SquadPage from "@/pages/SquadPage";
+import OverduePage from "@/pages/OverduePage";
 import DuesPage from "@/pages/DuesPage";
 import ChatPage from "@/pages/ChatPage";
 import ClubPage from "@/pages/ClubPage";
@@ -57,8 +57,14 @@ function LoggedIn() {
             <Switch>
               <Route path="/" component={HomePage} />
               <Route path="/jogos" component={GamesPage} />
-              <Route path="/times" component={TeamsPage} />
-              <Route path="/times/:id" component={TeamDetailPage} />
+              <Route path="/elenco" component={SquadPage} />
+              <Route path="/inadimplencia" component={OverduePage} />
+              <Route path="/times">
+                <Redirect to="/elenco" />
+              </Route>
+              <Route path="/times/*">
+                <Redirect to="/elenco" />
+              </Route>
               <Route path="/mensalidades" component={DuesPage} />
               <Route path="/chat" component={ChatPage} />
               <Route path="/clube" component={ClubPage} />

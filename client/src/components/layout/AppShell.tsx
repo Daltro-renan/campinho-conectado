@@ -1,27 +1,30 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import {
+  AlertTriangle,
   CalendarDays,
   Home,
   MessageCircle,
-  Shield,
+  Shirt,
   User,
   Wallet,
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { useActiveClub } from "@/lib/club";
 import { ClubSwitcher } from "./ClubSwitcher";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
-type NavItem = { href: string; label: string; icon: LucideIcon; mobile?: boolean };
+type NavItem = { href: string; label: string; icon: LucideIcon; mobile?: boolean; finance?: boolean };
 
 const NAV: NavItem[] = [
   { href: "/", label: "Início", icon: Home, mobile: true },
   { href: "/jogos", label: "Jogos", icon: CalendarDays, mobile: true },
-  { href: "/times", label: "Times", icon: Shield, mobile: true },
+  { href: "/elenco", label: "Elenco", icon: Shirt, mobile: true },
   { href: "/mensalidades", label: "Mensalidades", icon: Wallet },
+  { href: "/inadimplencia", label: "Inadimplência", icon: AlertTriangle, finance: true },
   { href: "/chat", label: "Chat", icon: MessageCircle, mobile: true },
   { href: "/clube", label: "Clube", icon: Users },
   { href: "/perfil", label: "Perfil", icon: User, mobile: true },
@@ -39,6 +42,8 @@ function isActive(location: string, href: string) {
 export function AppShell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const { user } = useAuth();
+  const { can } = useActiveClub();
+  const nav = NAV.filter((i) => !i.finance || can("finance.manage"));
 
   return (
     <div className="min-h-screen md:flex">
@@ -48,7 +53,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <ClubSwitcher />
         </div>
         <nav className="flex-1 space-y-0.5 p-3" aria-label="Principal">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const active = isActive(location, item.href);
             return (
               <Link
@@ -102,7 +107,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         aria-label="Principal"
       >
         <div className="mx-auto flex h-16 max-w-lg">
-          {NAV.filter((i) => i.mobile).map((item) => {
+          {nav.filter((i) => i.mobile).map((item) => {
             const active = isActive(location, item.href);
             return (
               <Link

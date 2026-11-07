@@ -200,11 +200,18 @@ function ClubDuesSection() {
         <div className="rounded-lg border border-warn/60 bg-warn/10 px-4 py-3 text-sm">
           Defina o valor da mensalidade e o dia de vencimento em{" "}
           <Link href="/clube" className="font-semibold underline underline-offset-2">
-            Clube e associados
-          </Link>{" "}
-          para gerar cobranças.
+            Clube
+          </Link>
+          . A partir daí, as cobranças são geradas automaticamente todo mês.
         </div>
-      ) : null}
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Geradas automaticamente todo mês: {money(club.monthlyFee)}, vencimento dia {club.dueDay}.{" "}
+          <Link href="/inadimplencia" className="font-medium text-primary hover:underline">
+            Ver inadimplentes
+          </Link>
+        </p>
+      )}
 
       {isLoading || !data || !o ? (
         <LoadingRows />
@@ -237,7 +244,7 @@ function ClubDuesSection() {
             </p>
           </section>
 
-          {club.monthlyFee > 0 ? (
+          {club.monthlyFee > 0 && month < currentMonth() && data.items.length === 0 ? (
             <Button variant="outline" className="w-full" disabled={generate.isPending} onClick={() => generate.mutate(undefined)}>
               <Wallet className="mr-2 h-4 w-4" />
               {generate.isPending
@@ -250,7 +257,11 @@ function ClubDuesSection() {
             <EmptyState
               icon={Receipt}
               title="Nenhuma cobrança neste mês"
-              description="Gere as mensalidades para todos os associados de uma vez. Quem é isento fica de fora."
+              description={
+                month > currentMonth()
+                  ? "As mensalidades deste mês serão geradas automaticamente quando ele começar."
+                  : "As mensalidades são geradas automaticamente todo mês para os associados não isentos."
+              }
             />
           ) : (
             <ul className="divide-y rounded-lg border bg-card">

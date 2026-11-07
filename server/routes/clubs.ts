@@ -1,9 +1,9 @@
 /** Clubes: criar, entrar por convite, editar, sair e gerenciar associados. */
 import { Router } from "express";
 import crypto from "crypto";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
-import { clubs, memberships, users, type Club } from "@shared/schema";
+import { clubs, dues, memberships, users, type Club } from "@shared/schema";
 import {
   clubSchema,
   joinClubSchema,
@@ -16,6 +16,7 @@ import { currentUser } from "../lib/auth";
 import { clubCtx, ensureCalendarToken, loadClub, requireCapability } from "../lib/club";
 import { randomToken } from "../lib/crypto";
 import { env } from "../env";
+import { ensureMonthlyDues } from "../lib/auto-dues";
 import { badRequest, conflict, forbidden, idParam, nonEmpty, notFound, parse } from "../lib/http";
 import { serialize } from "../lib/dto";
 
@@ -26,6 +27,11 @@ const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 function newInviteCode(): string {
   const bytes = crypto.randomBytes(6);
   return Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
+}
+
+/** Quem sai do clube deixa de dever as mensalidades em aberto (as pagas ficam no histórico) */
+async function removeOpenDues(clubId: number, userId: number) {
+  await db.delete(dues).where(and(eq(dues.clubId, clubId), eq(dues.userId, userId), isNull(dues.paidAt)));
 }
 
 async function memberCounts(clubIds: number[]): Promise<Map<number, number>> {
@@ -96,8 +102,9 @@ clubsRouter.post("/join", async (req, res) => {
   if (already) throw conflict("Você já faz parte deste clube");
   club = await ensureCalendarToken(club);
 
-  // Quem entra por convite começa como jogador
+  // Quem entra por convite começa como jogador — e já faz parte do elenco
   await db.insert(memberships).values({ clubId: club.id, userId: user.id, role: "jogador" });
+  await ensureMonthlyDues(club);
   const counts = await memberCounts([club.id]);
   res.status(201).json(toMyClub(club, "jogador", counts.get(club.id) ?? 1));
 });
@@ -117,6 +124,8 @@ clubRouter.patch("/", requireCapability("club.edit"), async (req, res) => {
   const { club, role } = clubCtx(req);
   const data = nonEmpty(parse(updateClubSchema, req.body));
   const [updated] = await db.update(clubs).set(data).where(eq(clubs.id, club.id)).returning();
+  // Ao definir a mensalidade, a cobrança do mês já é gerada para todos
+  await ensureMonthlyDues(updated);
   const counts = await memberCounts([club.id]);
   res.json(toMyClub(updated, role, counts.get(club.id) ?? 1));
 });
@@ -151,6 +160,7 @@ clubRouter.post("/leave", async (req, res) => {
     }
   }
   await db.delete(memberships).where(eq(memberships.id, membership.id));
+  await removeOpenDues(club.id, membership.userId);
   res.json({ ok: true });
 });
 
@@ -169,6 +179,16 @@ clubRouter.get("/members", async (req, res) => {
       email: users.email,
       avatarUrl: users.avatarUrl,
       phone: users.phone,
+      nickname: memberships.nickname,
+      position: memberships.position,
+      shirtNumber: memberships.shirtNumber,
+      playerStatus: memberships.playerStatus,
+      isCaptain: memberships.isCaptain,
+      goals: memberships.goals,
+      assists: memberships.assists,
+      yellowCards: memberships.yellowCards,
+      redCards: memberships.redCards,
+      gamesPlayed: memberships.gamesPlayed,
     })
     .from(memberships)
     .innerJoin(users, eq(users.id, memberships.userId))
@@ -216,6 +236,7 @@ clubRouter.patch("/members/:memberId", requireCapability("members.manage"), asyn
     .set(data)
     .where(eq(memberships.id, target.id))
     .returning();
+  if (data.feeExempt === false) await ensureMonthlyDues(club);
   res.json({ ...updated, joinedAt: updated.joinedAt.toISOString() });
 });
 
@@ -225,5 +246,6 @@ clubRouter.delete("/members/:memberId", requireCapability("members.manage"), asy
   if (target.id === me.id) throw badRequest("Para sair do clube, use a opção Sair do clube");
   if (!canManageMember(myRole, target.role as Role)) throw forbidden();
   await db.delete(memberships).where(eq(memberships.id, target.id));
+  await removeOpenDues(club.id, target.userId);
   res.json({ ok: true });
 });

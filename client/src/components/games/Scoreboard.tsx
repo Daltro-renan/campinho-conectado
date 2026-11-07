@@ -4,6 +4,7 @@ import type { GameDTO } from "@shared/api";
 import { COMPETITION_LABELS } from "@shared/validation";
 import { daysUntil, fmtGameDay, fmtTime } from "@/lib/format";
 import { gameSides } from "./GameSides";
+import { useActiveClub } from "@/lib/club";
 import { AttendanceToggle } from "./AttendanceToggle";
 
 /**
@@ -11,7 +12,8 @@ import { AttendanceToggle } from "./AttendanceToggle";
  * Fundo de gramado com a linha do meio e o círculo central.
  */
 export function Scoreboard({ game }: { game: GameDTO }) {
-  const { home, away } = gameSides(game);
+  const { club } = useActiveClub();
+  const { home, away } = gameSides(game, club);
   const days = daysUntil(game.startsAt);
   const countdown = days <= 0 ? "É hoje" : days === 1 ? "É amanhã" : `Faltam ${days} dias`;
 
@@ -55,7 +57,7 @@ export function Scoreboard({ game }: { game: GameDTO }) {
       </div>
       <div className="flex flex-wrap gap-2 bg-black/15 px-5 pb-3">
         <a
-          href={googleCalendarUrl(game)}
+          href={googleCalendarUrl(game, club)}
           target="_blank"
           rel="noreferrer"
           className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-sm font-semibold hover:bg-white/20"

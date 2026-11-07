@@ -4,9 +4,9 @@
  * e os jogos marcados aparecem sozinhos. O link usa um token secreto do clube.
  */
 import { Router } from "express";
-import { and, eq, gte, inArray } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 import { db } from "../db";
-import { clubs, games, teams } from "@shared/schema";
+import { clubs, games } from "@shared/schema";
 import { COMPETITION_LABELS } from "@shared/validation";
 import { notFound } from "../lib/http";
 
@@ -43,10 +43,6 @@ calendarRouter.get("/calendar/:file", async (req, res) => {
     .from(games)
     .where(and(eq(games.clubId, club.id), gte(games.startsAt, since)));
 
-  const teamIds = [...new Set(list.flatMap((g) => [g.teamId, g.opponentTeamId]).filter((x): x is number => !!x))];
-  const teamRows = teamIds.length ? await db.select().from(teams).where(inArray(teams.id, teamIds)) : [];
-  const teamName = new Map(teamRows.map((t) => [t.id, t.name]));
-
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -59,8 +55,8 @@ calendarRouter.get("/calendar/:file", async (req, res) => {
   ];
 
   for (const g of list) {
-    const ours = teamName.get(g.teamId) ?? club.name;
-    const theirs = g.opponentTeamId ? (teamName.get(g.opponentTeamId) ?? "Adversário") : (g.opponentName ?? "Adversário");
+    const ours = club.name;
+    const theirs = g.opponentName ?? "Adversário";
     const [home, away] = g.isHome ? [ours, theirs] : [theirs, ours];
     const score =
       g.status === "finalizado" && g.teamScore != null && g.opponentScore != null

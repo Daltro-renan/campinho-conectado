@@ -1,26 +1,25 @@
 /** Mensalidades: cada associado vê as suas; a diretoria gera cobranças e dá baixa. */
 import { Router } from "express";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, lt, sql } from "drizzle-orm";
 import { db } from "../db";
 import { dues, memberships, users } from "@shared/schema";
 import { createDueSchema, generateDuesSchema, markDuePaidSchema } from "@shared/validation";
-import type { DueDTO, FinanceOverview } from "@shared/api";
+import type { DueDTO, FinanceOverview, OverdueMemberDTO, OverdueReport } from "@shared/api";
 import { currentUser } from "../lib/auth";
 import { clubCtx, requireCapability } from "../lib/club";
 import { badRequest, idParam, notFound, parse } from "../lib/http";
-import { currentMonth, summarizeDues, toDueDTO } from "../lib/dto";
+import { currentMonth, summarizeDues, toDueDTO, todayISO } from "../lib/dto";
+import { ensureMonthlyDues } from "../lib/auto-dues";
 
 export const duesRouter = Router({ mergeParams: true });
 
 const monthRegex = /^\d{4}-(0[1-9]|1[0-2])$/;
 
-function dueDateFor(referenceMonth: string, dueDay: number): string {
-  return `${referenceMonth}-${String(dueDay).padStart(2, "0")}`;
-}
 
 /** Minhas mensalidades + resumo (em dia / pendente / vencido) */
 duesRouter.get("/dues/me", async (req, res) => {
   const { club } = clubCtx(req);
+  await ensureMonthlyDues(club);
   const user = currentUser(req);
   const rows = await db
     .select()
@@ -37,6 +36,7 @@ duesRouter.get("/dues", requireCapability("finance.manage"), async (req, res) =>
   const month = typeof req.query.month === "string" && monthRegex.test(req.query.month)
     ? req.query.month
     : currentMonth();
+  if (month === currentMonth()) await ensureMonthlyDues(club);
 
   const rows = await db
     .select({ due: dues, name: users.name })
@@ -57,36 +57,78 @@ duesRouter.get("/dues", requireCapability("finance.manage"), async (req, res) =>
   res.json({ overview, items });
 });
 
-/** Gera a mensalidade do mês para todos os associados que ainda não têm */
+/** Gera as mensalidades de um mês específico (ex.: meses anteriores). O mês atual é automático. */
 duesRouter.post("/dues/generate", requireCapability("finance.manage"), async (req, res) => {
   const { club } = clubCtx(req);
   const { referenceMonth } = parse(generateDuesSchema, req.body);
   if (club.monthlyFee <= 0) {
     throw badRequest("Defina o valor da mensalidade nas configurações do clube antes de gerar cobranças.");
   }
+  const created = await ensureMonthlyDues(club, referenceMonth);
+  res.status(201).json({ created });
+});
 
-  const members = await db
-    .select({ userId: memberships.userId })
-    .from(memberships)
-    .where(and(eq(memberships.clubId, club.id), eq(memberships.feeExempt, false)));
+/** Inadimplência: associados com mensalidades vencidas e não pagas */
+duesRouter.get("/dues/overdue", requireCapability("finance.manage"), async (req, res) => {
+  const { club } = clubCtx(req);
+  await ensureMonthlyDues(club);
+  const today = todayISO();
 
-  if (members.length === 0) return res.json({ created: 0 });
+  const rows = await db
+    .select({
+      due: dues,
+      memberId: memberships.id,
+      name: users.name,
+      email: users.email,
+      phone: users.phone,
+      avatarUrl: users.avatarUrl,
+    })
+    .from(dues)
+    .innerJoin(users, eq(users.id, dues.userId))
+    .innerJoin(memberships, and(eq(memberships.userId, dues.userId), eq(memberships.clubId, dues.clubId)))
+    .where(and(eq(dues.clubId, club.id), isNull(dues.paidAt), lt(dues.dueDate, today)))
+    .orderBy(asc(dues.dueDate));
 
-  const created = await db
-    .insert(dues)
-    .values(
-      members.map((m) => ({
-        clubId: club.id,
-        userId: m.userId,
-        referenceMonth,
-        amount: club.monthlyFee,
-        dueDate: dueDateFor(referenceMonth, club.dueDay),
-      })),
-    )
-    .onConflictDoNothing()
-    .returning({ id: dues.id });
+  const byUser = new Map<number, OverdueMemberDTO>();
+  for (const r of rows) {
+    const item: OverdueMemberDTO = byUser.get(r.due.userId) ?? {
+      memberId: r.memberId,
+      userId: r.due.userId,
+      name: r.name,
+      email: r.email,
+      phone: r.phone,
+      avatarUrl: r.avatarUrl,
+      overdueCount: 0,
+      overdueAmount: 0,
+      oldestDueDate: r.due.dueDate,
+      daysLate: 0,
+      dues: [],
+    };
+    item.overdueCount += 1;
+    item.overdueAmount += r.due.amount;
+    item.dues.push(toDueDTO(r.due, r.name));
+    byUser.set(r.due.userId, item);
+  }
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const members = [...byUser.values()]
+    .map((m) => ({
+      ...m,
+      daysLate: Math.max(0, Math.round((Date.parse(today) - Date.parse(m.oldestDueDate)) / msPerDay)),
+    }))
+    .sort((a, b) => b.daysLate - a.daysLate || b.overdueAmount - a.overdueAmount);
 
-  res.status(201).json({ created: created.length });
+  const [{ charged }] = await db
+    .select({ charged: sql<number>`count(distinct ${dues.userId})::int` })
+    .from(dues)
+    .where(eq(dues.clubId, club.id));
+
+  const report: OverdueReport = {
+    members,
+    totalAmount: members.reduce((s, m) => s + m.overdueAmount, 0),
+    memberCount: members.length,
+    payingMembers: Math.max(0, charged - members.length),
+  };
+  res.json(report);
 });
 
 /** Cobrança avulsa para um associado */

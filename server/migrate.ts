@@ -31,6 +31,44 @@ const STEPS: string[] = [
   `ALTER TABLE "dues" ADD COLUMN IF NOT EXISTS "pix_qr_code" text`,
   `ALTER TABLE "dues" ADD COLUMN IF NOT EXISTS "pix_qr_base64" text`,
   `ALTER TABLE "dues" ADD COLUMN IF NOT EXISTS "pix_expires_at" timestamp with time zone`,
+  // Clube = time: dados de jogador passam para o associado
+  `ALTER TABLE "memberships" ADD COLUMN IF NOT EXISTS "nickname" text`,
+  `ALTER TABLE "memberships" ADD COLUMN IF NOT EXISTS "position" text`,
+  `ALTER TABLE "memberships" ADD COLUMN IF NOT EXISTS "shirt_number" integer`,
+  `ALTER TABLE "memberships" ADD COLUMN IF NOT EXISTS "player_status" text NOT NULL DEFAULT 'ativo'`,
+  `ALTER TABLE "memberships" ADD COLUMN IF NOT EXISTS "is_captain" boolean NOT NULL DEFAULT false`,
+  `ALTER TABLE "memberships" ADD COLUMN IF NOT EXISTS "goals" integer NOT NULL DEFAULT 0`,
+  `ALTER TABLE "memberships" ADD COLUMN IF NOT EXISTS "assists" integer NOT NULL DEFAULT 0`,
+  `ALTER TABLE "memberships" ADD COLUMN IF NOT EXISTS "yellow_cards" integer NOT NULL DEFAULT 0`,
+  `ALTER TABLE "memberships" ADD COLUMN IF NOT EXISTS "red_cards" integer NOT NULL DEFAULT 0`,
+  `ALTER TABLE "memberships" ADD COLUMN IF NOT EXISTS "games_played" integer NOT NULL DEFAULT 0`,
+  // Copia os dados de jogadores antigos que estavam vinculados a um associado
+  `DO $$ BEGIN
+    IF to_regclass('public.players') IS NOT NULL THEN
+      UPDATE "memberships" m SET
+        "nickname" = COALESCE(m."nickname", p."nickname"),
+        "position" = COALESCE(m."position", p."position"),
+        "shirt_number" = COALESCE(m."shirt_number", p."shirt_number"),
+        "goals" = GREATEST(m."goals", p."goals"),
+        "assists" = GREATEST(m."assists", p."assists"),
+        "yellow_cards" = GREATEST(m."yellow_cards", p."yellow_cards"),
+        "red_cards" = GREATEST(m."red_cards", p."red_cards"),
+        "games_played" = GREATEST(m."games_played", p."games_played")
+      FROM "players" p
+      WHERE p."user_id" = m."user_id" AND p."club_id" = m."club_id";
+    END IF;
+  END $$`,
+  // Jogos deixam de ter "time": o nome do adversário passa a ser o que vale
+  `DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'games' AND column_name = 'team_id') THEN
+      ALTER TABLE "games" ALTER COLUMN "team_id" DROP NOT NULL;
+      IF to_regclass('public.teams') IS NOT NULL THEN
+        UPDATE "games" g SET "opponent_name" = t."name"
+        FROM "teams" t WHERE g."opponent_name" IS NULL AND t."id" = g."opponent_team_id";
+      END IF;
+    END IF;
+  END $$`,
+  `UPDATE "games" SET "opponent_name" = 'Adversário' WHERE "opponent_name" IS NULL`,
 ];
 
 export async function migrate() {

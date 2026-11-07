@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
-import { useClub } from "@/lib/club";
+import { useActiveClub } from "@/lib/club";
 import { useClubMutation } from "@/lib/mutation";
 import { gameSides } from "./GameSides";
 
@@ -16,16 +16,16 @@ export function ResultDialog({
   game: GameDTO | null;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { clubPath } = useClub();
+  const { club, clubPath } = useActiveClub();
   const [home, setHome] = useState("");
   const [away, setAway] = useState("");
 
   useEffect(() => {
     if (!game) return;
-    const sides = gameSides(game);
+    const sides = gameSides(game, club);
     setHome(sides.home.score != null ? String(sides.home.score) : "");
     setAway(sides.away.score != null ? String(sides.away.score) : "");
-  }, [game]);
+  }, [game, club]);
 
   const save = useClubMutation(
     () => {
@@ -41,7 +41,7 @@ export function ResultDialog({
   );
 
   if (!game) return null;
-  const sides = gameSides(game);
+  const sides = gameSides(game, club);
   const valid = home !== "" && away !== "";
 
   return (

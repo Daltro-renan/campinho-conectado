@@ -4,6 +4,7 @@ import { apiRouter } from "./routes";
 import { errorHandler } from "./lib/http";
 import { log, serveClient } from "./vite";
 import { migrate } from "./migrate";
+import { startAutoDues } from "./lib/auto-dues";
 
 const app = express();
 app.disable("x-powered-by");
@@ -35,6 +36,7 @@ app.use("/api", apiRouter());
 app.use("/api", errorHandler);
 
 await migrate();
+startAutoDues();
 await serveClient(app);
 
 app.listen(env.port, env.host, () => {

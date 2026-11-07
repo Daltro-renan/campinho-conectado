@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import type { GameDTO, TeamDTO } from "@shared/api";
+import type { GameDTO } from "@shared/api";
 import { COMPETITIONS, COMPETITION_LABELS } from "@shared/validation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -8,23 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/Field";
 import { api } from "@/lib/api";
-import { useClub } from "@/lib/club";
+import { useActiveClub } from "@/lib/club";
 import { useClubMutation } from "@/lib/mutation";
 import { toDateTimeInput } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-type Props = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  teams: TeamDTO[];
-  game?: GameDTO | null;
-};
-
-function initialState(teams: TeamDTO[], game?: GameDTO | null) {
+function initialState(game?: GameDTO | null) {
   return {
-    teamId: game ? String(game.teamId) : teams[0] ? String(teams[0].id) : "",
-    opponentKind: game?.opponentTeamId ? ("interno" as const) : ("externo" as const),
-    opponentTeamId: game?.opponentTeamId ? String(game.opponentTeamId) : "",
     opponentName: game?.opponentName ?? "",
     isHome: game?.isHome ?? true,
     competition: game?.competition ?? "amistoso",
@@ -35,39 +25,30 @@ function initialState(teams: TeamDTO[], game?: GameDTO | null) {
   };
 }
 
-/** Criar ou editar um jogo. O adversário pode ser um time do clube ou de fora. */
-export function GameFormDialog({ open, onOpenChange, teams, game }: Props) {
-  const { clubPath } = useClub();
-  const [form, setForm] = useState(() => initialState(teams, game));
+/** Marcar ou editar um jogo do clube contra um adversário */
+export function GameFormDialog({
+  open,
+  onOpenChange,
+  game,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  game?: GameDTO | null;
+}) {
+  const { club, clubPath } = useActiveClub();
+  const [form, setForm] = useState(() => initialState(game));
 
   useEffect(() => {
-    if (open) setForm(initialState(teams, game));
-  }, [open, game, teams]);
+    if (open) setForm(initialState(game));
+  }, [open, game]);
 
   const save = useClubMutation(
     () => {
-      const body = {
-        teamId: Number(form.teamId),
-        opponentTeamId: form.opponentKind === "interno" ? Number(form.opponentTeamId) || null : null,
-        opponentName: form.opponentKind === "externo" ? form.opponentName : null,
-        isHome: form.isHome,
-        competition: form.competition,
-        competitionName: form.competitionName,
-        startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : "",
-        location: form.location,
-        notes: form.notes,
-      };
+      const body = { ...form, startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : "" };
       return game ? api.patch(clubPath(`/games/${game.id}`), body) : api.post(clubPath("/games"), body);
     },
     { success: game ? "Jogo atualizado" : "Jogo marcado", onSuccess: () => onOpenChange(false) },
   );
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    save.mutate(undefined);
-  };
-
-  const otherTeams = teams.filter((t) => String(t.id) !== form.teamId);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -75,54 +56,22 @@ export function GameFormDialog({ open, onOpenChange, teams, game }: Props) {
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">{game ? "Editar jogo" : "Marcar jogo"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={submit} className="space-y-4">
-          <Field label="Nosso time">
-            <Select value={form.teamId} onValueChange={(v) => setForm({ ...form, teamId: v })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Escolha o time" />
-              </SelectTrigger>
-              <SelectContent>
-                {teams.map((t) => (
-                  <SelectItem key={t.id} value={String(t.id)}>
-                    {t.name} ({t.category})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">Adversário</legend>
-            <Segmented
-              value={form.opponentKind}
-              onChange={(v) => setForm({ ...form, opponentKind: v })}
-              options={[
-                { value: "externo", label: "Time de fora" },
-                { value: "interno", label: "Time do clube", disabled: otherTeams.length === 0 },
-              ]}
+        <form
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault();
+            save.mutate(undefined);
+          }}
+          className="space-y-4"
+        >
+          <Field label={`${club.name} x`} htmlFor="game-opponent">
+            <Input
+              id="game-opponent"
+              placeholder="Nome do adversário, ex.: União FC"
+              value={form.opponentName}
+              onChange={(e) => setForm({ ...form, opponentName: e.target.value })}
+              required
             />
-            {form.opponentKind === "externo" ? (
-              <Input
-                aria-label="Nome do adversário"
-                placeholder="Ex.: União FC"
-                value={form.opponentName}
-                onChange={(e) => setForm({ ...form, opponentName: e.target.value })}
-              />
-            ) : (
-              <Select value={form.opponentTeamId} onValueChange={(v) => setForm({ ...form, opponentTeamId: v })}>
-                <SelectTrigger aria-label="Time adversário">
-                  <SelectValue placeholder="Escolha o adversário" />
-                </SelectTrigger>
-                <SelectContent>
-                  {otherTeams.map((t) => (
-                    <SelectItem key={t.id} value={String(t.id)}>
-                      {t.name} ({t.category})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </fieldset>
+          </Field>
 
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">Mando de campo</legend>
@@ -173,10 +122,10 @@ export function GameFormDialog({ open, onOpenChange, teams, game }: Props) {
             </Field>
           ) : null}
 
-          <Field label="Local" htmlFor="game-location">
+          <Field label="Local" htmlFor="game-location" hint="Aparece no mapa e no botão Como chegar">
             <Input
               id="game-location"
-              placeholder="Ex.: Campo Central"
+              placeholder="Ex.: Campo Central, Rua das Flores 100"
               value={form.location}
               onChange={(e) => setForm({ ...form, location: e.target.value })}
             />

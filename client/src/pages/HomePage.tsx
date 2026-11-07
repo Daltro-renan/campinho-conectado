@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarPlus, ChevronRight, Megaphone, Pin } from "lucide-react";
+import { AlertTriangle, CalendarPlus, ChevronRight, Megaphone, Pin } from "lucide-react";
 import type { OverviewDTO } from "@shared/api";
 import { Button } from "@/components/ui/button";
 import { Scoreboard } from "@/components/games/Scoreboard";
@@ -54,6 +54,22 @@ export default function HomePage() {
               ) : null}
             </div>
           )}
+
+          {data.overdue && data.overdue.memberCount > 0 ? (
+            <Link
+              href="/inadimplencia"
+              className="mt-4 flex items-center gap-3 rounded-lg border border-danger/40 bg-danger/5 px-4 py-3 hover:bg-danger/10"
+            >
+              <AlertTriangle className="h-5 w-5 shrink-0 text-danger" aria-hidden />
+              <span className="flex-1 text-sm">
+                <strong>
+                  {data.overdue.memberCount} associado{data.overdue.memberCount === 1 ? "" : "s"} em atraso
+                </strong>
+                , total de {money(data.overdue.totalAmount)}
+              </span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden />
+            </Link>
+          ) : null}
 
           {/* Mensalidade + campanha */}
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -146,8 +162,8 @@ export default function HomePage() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium">{p.nickname || p.name}</span>
                       <span className="block truncate text-xs text-muted-foreground">
-                        {p.position}
-                        {p.teamName ? `, ${p.teamName}` : ""}
+                        {p.position ?? "Posição não definida"}
+                        {p.assists > 0 ? `, ${p.assists} assistência${p.assists === 1 ? "" : "s"}` : ""}
                       </span>
                     </span>
                     <span className="text-right">

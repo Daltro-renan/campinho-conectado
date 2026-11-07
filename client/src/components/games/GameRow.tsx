@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { fmtDate, fmtTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useActiveClub } from "@/lib/club";
 import { gameOutcome, gameSides } from "./GameSides";
 import { AttendanceToggle } from "./AttendanceToggle";
 import { GameExtras } from "./GameExtras";
@@ -31,7 +32,8 @@ type Actions = {
 
 /** Linha de jogo no estilo súmula: data à esquerda, confronto e placar no centro */
 export function GameRow({ game, actions }: { game: GameDTO; actions?: Actions }) {
-  const { home, away } = gameSides(game);
+  const { club } = useActiveClub();
+  const { home, away } = gameSides(game, club);
   const outcome = gameOutcome(game);
   const finished = game.status === "finalizado";
   const cancelled = game.status === "cancelado";

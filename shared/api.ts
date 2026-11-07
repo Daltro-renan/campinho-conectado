@@ -3,7 +3,7 @@
  * e pelo app ao ler. Datas chegam como texto ISO no JSON.
  */
 import type { Role, Channel } from "./roles";
-import type { User, Club, Team, Player, Game, Due, Notice } from "./schema";
+import type { User, Club, Game, Due, Notice } from "./schema";
 
 type Serialized<T> = {
   [K in keyof T]: T[K] extends Date ? string : T[K] extends Date | null ? string | null : T[K];
@@ -43,6 +43,7 @@ export type PixCharge = {
   amount: number;
 };
 
+/** Associado = jogador do elenco do clube */
 export type MemberDTO = {
   id: number;
   userId: number;
@@ -53,6 +54,16 @@ export type MemberDTO = {
   email: string;
   avatarUrl: string | null;
   phone: string | null;
+  nickname: string | null;
+  position: string | null;
+  shirtNumber: number | null;
+  playerStatus: string;
+  isCaptain: boolean;
+  goals: number;
+  assists: number;
+  yellowCards: number;
+  redCards: number;
+  gamesPlayed: number;
 };
 
 export type TeamRecord = {
@@ -64,25 +75,7 @@ export type TeamRecord = {
   goalsAgainst: number;
 };
 
-export type TeamDTO = Serialized<Team> & {
-  playerCount: number;
-  coachName: string | null;
-  record: TeamRecord;
-};
-
-export type PlayerDTO = Serialized<Player> & { teamName: string | null };
-
-export type TeamSummary = {
-  id: number;
-  name: string;
-  abbreviation: string;
-  colorPrimary: string;
-  colorSecondary: string;
-};
-
 export type GameDTO = Serialized<Game> & {
-  team: TeamSummary;
-  opponentTeam: TeamSummary | null;
   attendance: { confirmed: number; absent: number; mine: "confirmado" | "ausente" | null };
 };
 
@@ -126,10 +119,33 @@ export type ScorerDTO = {
   id: number;
   name: string;
   nickname: string | null;
-  position: string;
-  teamName: string | null;
+  position: string | null;
+  avatarUrl: string | null;
   goals: number;
   assists: number;
+};
+
+/** Associado com mensalidade vencida (página de inadimplência da diretoria) */
+export type OverdueMemberDTO = {
+  memberId: number;
+  userId: number;
+  name: string;
+  avatarUrl: string | null;
+  phone: string | null;
+  email: string;
+  overdueCount: number;
+  overdueAmount: number;
+  oldestDueDate: string;
+  daysLate: number;
+  dues: DueDTO[];
+};
+
+export type OverdueReport = {
+  members: OverdueMemberDTO[];
+  totalAmount: number;
+  memberCount: number;
+  /** Associados em dia / total cobrado, para a taxa de adimplência */
+  payingMembers: number;
 };
 
 export type OverviewDTO = {
@@ -139,7 +155,8 @@ export type OverviewDTO = {
   dues: DuesSummary;
   record: TeamRecord;
   memberCount: number;
-  teamCount: number;
+  /** Só para quem cuida das finanças: resumo da inadimplência */
+  overdue: { memberCount: number; totalAmount: number } | null;
   topScorers: ScorerDTO[];
   notices: NoticeDTO[];
 };

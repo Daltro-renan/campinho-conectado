@@ -115,23 +115,7 @@ export const updateMemberSchema = z.object({
   feeExempt: z.boolean().optional(),
 });
 
-// ---------- Times e jogadores ----------
-
-export const teamSchema = z.object({
-  name: z.string().trim().min(2, "Informe o nome do time").max(60),
-  abbreviation: z
-    .string()
-    .trim()
-    .min(2, "Use de 2 a 4 letras")
-    .max(4, "Use de 2 a 4 letras")
-    .transform((v) => v.toUpperCase()),
-  category: z.string().trim().min(1, "Informe a categoria").max(40),
-  colorPrimary: hexColor,
-  colorSecondary: hexColor,
-  description: optionalText(500),
-  coachUserId: z.coerce.number().int().positive().optional().nullable(),
-});
-export const updateTeamSchema = teamSchema.partial();
+// ---------- Elenco ----------
 
 export const PLAYER_POSITIONS = [
   "Goleiro",
@@ -145,14 +129,16 @@ export const PLAYER_POSITIONS = [
 
 export const PLAYER_STATUSES = ["ativo", "lesionado", "suspenso", "inativo"] as const;
 
-export const playerSchema = z.object({
-  name: z.string().trim().min(2, "Informe o nome").max(80),
+/** O próprio associado pode editar apelido, posição e número */
+export const playerProfileSchema = z.object({
   nickname: optionalText(40),
-  position: z.enum(PLAYER_POSITIONS, { message: "Escolha a posição" }),
+  position: z.enum(PLAYER_POSITIONS).optional().nullable(),
   shirtNumber: z.coerce.number().int().min(0).max(99).optional().nullable(),
-  teamId: z.coerce.number().int().positive().optional().nullable(),
-  userId: z.coerce.number().int().positive().optional().nullable(),
-  status: z.enum(PLAYER_STATUSES).optional(),
+});
+
+/** A comissão técnica edita também situação, capitão e números da temporada */
+export const playerAdminSchema = playerProfileSchema.extend({
+  playerStatus: z.enum(PLAYER_STATUSES).optional(),
   isCaptain: z.boolean().optional(),
   goals: z.coerce.number().int().min(0).max(9999).optional(),
   assists: z.coerce.number().int().min(0).max(9999).optional(),
@@ -160,7 +146,6 @@ export const playerSchema = z.object({
   redCards: z.coerce.number().int().min(0).max(999).optional(),
   gamesPlayed: z.coerce.number().int().min(0).max(9999).optional(),
 });
-export const updatePlayerSchema = playerSchema.partial();
 
 // ---------- Jogos ----------
 
@@ -174,9 +159,7 @@ export const COMPETITION_LABELS: Record<(typeof COMPETITIONS)[number], string> =
 export const GAME_STATUSES = ["agendado", "finalizado", "cancelado"] as const;
 
 const gameBase = z.object({
-  teamId: z.coerce.number().int().positive({ message: "Escolha o time" }),
-  opponentTeamId: z.coerce.number().int().positive().optional().nullable(),
-  opponentName: optionalText(80),
+  opponentName: z.string().trim().min(2, "Informe o adversário").max(80),
   isHome: z.boolean().default(true),
   competition: z.enum(COMPETITIONS).default("amistoso"),
   competitionName: optionalText(80),
@@ -185,10 +168,7 @@ const gameBase = z.object({
   notes: optionalText(500),
 });
 
-export const gameSchema = gameBase.refine((g) => g.opponentTeamId || g.opponentName, {
-  message: "Escolha um time do clube ou digite o nome do adversário",
-  path: ["opponentName"],
-});
+export const gameSchema = gameBase;
 
 export const updateGameSchema = gameBase.partial().extend({
   status: z.enum(GAME_STATUSES).optional(),
@@ -255,7 +235,5 @@ export const noticeSchema = z.object({
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ClubInput = z.input<typeof clubSchema>;
-export type TeamInput = z.input<typeof teamSchema>;
-export type PlayerInput = z.input<typeof playerSchema>;
 export type GameInput = z.input<typeof gameSchema>;
 export type UpdateGameInput = z.input<typeof updateGameSchema>;

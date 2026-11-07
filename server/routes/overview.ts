@@ -1,14 +1,17 @@
 /** Painel inicial do clube e mural de avisos. */
 import { Router } from "express";
-import { and, asc, desc, eq, gte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { db } from "../db";
-import { dues, games, memberships, notices, players, teams, users } from "@shared/schema";
+import { dues, games, memberships, notices, users } from "@shared/schema";
 import { noticeSchema } from "@shared/validation";
 import type { NoticeDTO, OverviewDTO } from "@shared/api";
 import { currentUser } from "../lib/auth";
 import { clubCtx, requireCapability } from "../lib/club";
 import { idParam, notFound, parse } from "../lib/http";
-import { emptyRecord, serialize, summarizeDues, toDueDTO, toGameDTOs } from "../lib/dto";
+import { clubRecord, serialize, summarizeDues, toDueDTO, toGameDTOs, todayISO } from "../lib/dto";
+import { ensureMonthlyDues } from "../lib/auto-dues";
+import { topScorers } from "./roster";
+import { can } from "@shared/roles";
 import { toMyClub } from "./clubs";
 
 export const overviewRouter = Router({ mergeParams: true });
@@ -28,57 +31,45 @@ overviewRouter.get("/overview", async (req, res) => {
   const { club, role } = clubCtx(req);
   const user = currentUser(req);
   const now = new Date();
+  await ensureMonthlyDues(club);
 
-  const [[next], [last], myDues, [{ memberCount }], [{ teamCount }], scorers, finished, noticeList] =
-    await Promise.all([
-      db
-        .select()
-        .from(games)
-        .where(and(eq(games.clubId, club.id), eq(games.status, "agendado"), gte(games.startsAt, now)))
-        .orderBy(asc(games.startsAt))
-        .limit(1),
-      db
-        .select()
-        .from(games)
-        .where(and(eq(games.clubId, club.id), eq(games.status, "finalizado")))
-        .orderBy(desc(games.startsAt))
-        .limit(1),
-      db
-        .select()
-        .from(dues)
-        .where(and(eq(dues.clubId, club.id), eq(dues.userId, user.id))),
-      db
-        .select({ memberCount: sql<number>`count(*)::int` })
-        .from(memberships)
-        .where(eq(memberships.clubId, club.id)),
-      db
-        .select({ teamCount: sql<number>`count(*)::int` })
-        .from(teams)
-        .where(eq(teams.clubId, club.id)),
-      db
-        .select({ player: players, teamName: teams.name })
-        .from(players)
-        .leftJoin(teams, eq(teams.id, players.teamId))
-        .where(and(eq(players.clubId, club.id), sql`${players.goals} > 0`))
-        .orderBy(desc(players.goals), desc(players.assists))
-        .limit(5),
-      db
-        .select()
-        .from(games)
-        .where(and(eq(games.clubId, club.id), eq(games.status, "finalizado"))),
-      listNotices(club.id, 3),
-    ]);
+  const [[next], [last], myDues, [{ memberCount }], scorers, record, noticeList] = await Promise.all([
+    db
+      .select()
+      .from(games)
+      .where(and(eq(games.clubId, club.id), eq(games.status, "agendado"), gte(games.startsAt, now)))
+      .orderBy(asc(games.startsAt))
+      .limit(1),
+    db
+      .select()
+      .from(games)
+      .where(and(eq(games.clubId, club.id), eq(games.status, "finalizado")))
+      .orderBy(desc(games.startsAt))
+      .limit(1),
+    db
+      .select()
+      .from(dues)
+      .where(and(eq(dues.clubId, club.id), eq(dues.userId, user.id))),
+    db
+      .select({ memberCount: sql<number>`count(*)::int` })
+      .from(memberships)
+      .where(eq(memberships.clubId, club.id)),
+    topScorers(club.id, 5),
+    clubRecord(club.id),
+    listNotices(club.id, 3),
+  ]);
 
-  // Campanha do clube: só jogos contra adversários de fora (jogo-treino interno não conta)
-  const record = emptyRecord();
-  for (const g of finished) {
-    if (g.opponentTeamId || g.teamScore == null || g.opponentScore == null) continue;
-    record.played += 1;
-    record.goalsFor += g.teamScore;
-    record.goalsAgainst += g.opponentScore;
-    if (g.teamScore > g.opponentScore) record.wins += 1;
-    else if (g.teamScore === g.opponentScore) record.draws += 1;
-    else record.losses += 1;
+  // Resumo da inadimplência, só para quem cuida das finanças
+  let overdue: OverviewDTO["overdue"] = null;
+  if (can(role, "finance.manage")) {
+    const [row] = await db
+      .select({
+        memberCount: sql<number>`count(distinct ${dues.userId})::int`,
+        totalAmount: sql<number>`coalesce(sum(${dues.amount}), 0)::int`,
+      })
+      .from(dues)
+      .where(and(eq(dues.clubId, club.id), isNull(dues.paidAt), lt(dues.dueDate, todayISO())));
+    overdue = row;
   }
 
   const [nextGame, lastGame] = await Promise.all([
@@ -93,16 +84,8 @@ overviewRouter.get("/overview", async (req, res) => {
     dues: summarizeDues(myDues.map((d) => toDueDTO(d, user.name))),
     record,
     memberCount,
-    teamCount,
-    topScorers: scorers.map((s) => ({
-      id: s.player.id,
-      name: s.player.name,
-      nickname: s.player.nickname,
-      position: s.player.position,
-      teamName: s.teamName,
-      goals: s.player.goals,
-      assists: s.player.assists,
-    })),
+    overdue,
+    topScorers: scorers,
     notices: noticeList,
   };
   res.json(overview);

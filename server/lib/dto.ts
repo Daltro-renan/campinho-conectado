@@ -1,14 +1,13 @@
 /** Monta os objetos que a API devolve a partir das linhas do banco. */
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
-import { attendances, games, teams, users, type Due, type Game, type Team } from "@shared/schema";
+import { attendances, games, users, type Due, type Game } from "@shared/schema";
 import type {
   DueDTO,
   DueStatus,
   DuesSummary,
   GameDTO,
   TeamRecord,
-  TeamSummary,
 } from "@shared/api";
 
 const TIMEZONE = "America/Sao_Paulo";
@@ -54,25 +53,11 @@ export function summarizeDues(list: DueDTO[]): DuesSummary {
 
 // ---------- Jogos ----------
 
-const teamSummary = (t: Team): TeamSummary => ({
-  id: t.id,
-  name: t.name,
-  abbreviation: t.abbreviation,
-  colorPrimary: t.colorPrimary,
-  colorSecondary: t.colorSecondary,
-});
-
-/** Completa uma lista de jogos com os dados dos times e das presenças. */
+/** Completa uma lista de jogos com as presenças confirmadas. */
 export async function toGameDTOs(list: Game[], viewerId: number): Promise<GameDTO[]> {
   if (list.length === 0) return [];
-
-  const teamIds = [
-    ...new Set(list.flatMap((g) => [g.teamId, g.opponentTeamId]).filter((id): id is number => !!id)),
-  ];
-  const teamRows = await db.select().from(teams).where(inArray(teams.id, teamIds));
-  const teamById = new Map(teamRows.map((t) => [t.id, t]));
-
   const gameIds = list.map((g) => g.id);
+
   const counts = await db
     .select({
       gameId: attendances.gameId,
@@ -90,16 +75,11 @@ export async function toGameDTOs(list: Game[], viewerId: number): Promise<GameDT
   const mineById = new Map(mine.map((m) => [m.gameId, m.status]));
 
   return list.map((g) => {
-    const team = teamById.get(g.teamId);
-    const opponent = g.opponentTeamId ? teamById.get(g.opponentTeamId) : undefined;
     const countFor = (status: string) =>
       counts.find((c) => c.gameId === g.id && c.status === status)?.total ?? 0;
     return {
       ...serialize(g),
-      team: team
-        ? teamSummary(team)
-        : { id: g.teamId, name: "Time removido", abbreviation: "—", colorPrimary: "#666666", colorSecondary: "#FFFFFF" },
-      opponentTeam: opponent ? teamSummary(opponent) : null,
+      opponentName: g.opponentName ?? "Adversário",
       attendance: {
         confirmed: countFor("confirmado"),
         absent: countFor("ausente"),
@@ -113,45 +93,23 @@ export function emptyRecord(): TeamRecord {
   return { played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0 };
 }
 
-/** Soma vitórias/empates/derrotas dos jogos finalizados, por time. */
-export async function teamRecords(clubId: number): Promise<Map<number, TeamRecord>> {
+/** Campanha do clube: soma vitórias/empates/derrotas dos jogos finalizados */
+export async function clubRecord(clubId: number): Promise<TeamRecord> {
   const finished = await db
     .select()
     .from(games)
     .where(and(eq(games.clubId, clubId), eq(games.status, "finalizado")));
-
-  const records = new Map<number, TeamRecord>();
-  const add = (teamId: number, gf: number, ga: number) => {
-    const r = records.get(teamId) ?? emptyRecord();
-    r.played += 1;
-    r.goalsFor += gf;
-    r.goalsAgainst += ga;
-    if (gf > ga) r.wins += 1;
-    else if (gf === ga) r.draws += 1;
-    else r.losses += 1;
-    records.set(teamId, r);
-  };
-
+  const r = emptyRecord();
   for (const g of finished) {
     if (g.teamScore == null || g.opponentScore == null) continue;
-    add(g.teamId, g.teamScore, g.opponentScore);
-    // Jogo interno: conta também para o time adversário do clube
-    if (g.opponentTeamId) add(g.opponentTeamId, g.opponentScore, g.teamScore);
+    r.played += 1;
+    r.goalsFor += g.teamScore;
+    r.goalsAgainst += g.opponentScore;
+    if (g.teamScore > g.opponentScore) r.wins += 1;
+    else if (g.teamScore === g.opponentScore) r.draws += 1;
+    else r.losses += 1;
   }
-  return records;
-}
-
-export function sumRecords(list: Iterable<TeamRecord>): TeamRecord {
-  const total = emptyRecord();
-  for (const r of list) {
-    total.played += r.played;
-    total.wins += r.wins;
-    total.draws += r.draws;
-    total.losses += r.losses;
-    total.goalsFor += r.goalsFor;
-    total.goalsAgainst += r.goalsAgainst;
-  }
-  return total;
+  return r;
 }
 
 /** Nomes dos usuários por id (para montar listas) */

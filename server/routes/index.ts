@@ -4,7 +4,7 @@ import { requireAuth } from "../lib/auth";
 import { notFound } from "../lib/http";
 import { authRouter } from "./auth";
 import { clubRouter, clubsRouter } from "./clubs";
-import { squadRouter } from "./squad";
+import { rosterRouter } from "./roster";
 import { gamesRouter } from "./games";
 import { duesRouter } from "./dues";
 import { chatRouter } from "./chat";
@@ -37,7 +37,7 @@ export function apiRouter() {
   // `clubRouter` verifica se o usuário é associado antes dos demais.
   const club = Router({ mergeParams: true });
   club.use(clubRouter);
-  club.use(squadRouter);
+  club.use(rosterRouter);
   club.use(gamesRouter);
   club.use(duesRouter);
   club.use(chatRouter);
