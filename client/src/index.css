@@ -191,6 +191,11 @@
       repeating-linear-gradient(90deg, hsl(140 55% 22%) 0 9%, hsl(140 55% 26%) 9% 18%);
   }
 
+  /* Versão mais escura, para texto longo por cima (tela de entrada) */
+  .stadium-dim {
+    box-shadow: inset 0 0 0 100vmax rgb(3 10 20 / 0.45);
+  }
+
   /* Ingresso: papel creme com picote e código de barras */
   .ticket {
     position: relative;

@@ -188,6 +188,8 @@ export const dues = pgTable(
     pixQrCode: text("pix_qr_code"),
     pixQrBase64: text("pix_qr_base64"),
     pixExpiresAt: timestamp("pix_expires_at", { withTimezone: true }),
+    /** Cobrança excluída pela diretoria: some das listas e não é recriada automaticamente */
+    canceledAt: timestamp("canceled_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [

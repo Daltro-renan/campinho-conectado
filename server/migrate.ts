@@ -98,6 +98,8 @@ const STEPS: string[] = [
     "away_score" integer NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS "game_matches_game_idx" ON "game_matches" ("game_id")`,
+  // Cobrança excluída vira "cancelada" (a geração automática não a recria)
+  `ALTER TABLE "dues" ADD COLUMN IF NOT EXISTS "canceled_at" timestamptz`,
 ];
 
 export async function migrate() {

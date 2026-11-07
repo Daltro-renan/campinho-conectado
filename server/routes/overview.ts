@@ -49,7 +49,7 @@ overviewRouter.get("/overview", async (req, res) => {
     db
       .select()
       .from(dues)
-      .where(and(eq(dues.clubId, club.id), eq(dues.userId, user.id))),
+      .where(and(eq(dues.clubId, club.id), eq(dues.userId, user.id), isNull(dues.canceledAt))),
     db
       .select({ memberCount: sql<number>`count(*)::int` })
       .from(memberships)
@@ -68,7 +68,7 @@ overviewRouter.get("/overview", async (req, res) => {
         totalAmount: sql<number>`coalesce(sum(${dues.amount}), 0)::int`,
       })
       .from(dues)
-      .where(and(eq(dues.clubId, club.id), isNull(dues.paidAt), lt(dues.dueDate, todayISO())));
+      .where(and(eq(dues.clubId, club.id), isNull(dues.paidAt), isNull(dues.canceledAt), lt(dues.dueDate, todayISO())));
     overdue = row;
   }
 

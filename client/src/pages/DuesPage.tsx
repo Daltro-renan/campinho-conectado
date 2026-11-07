@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Copy, MoreVertical, Receipt, Wallet } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, MoreVertical, Plus, Receipt, Wallet } from "lucide-react";
 import type { DueDTO, DuesSummary, FinanceOverview } from "@shared/api";
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from "@shared/validation";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { EmptyState, LoadingRows } from "@/components/EmptyState";
 import { StatusPill } from "@/components/StatusPill";
 import { PayDueDialog } from "@/components/dues/PayDueDialog";
+import { NewDueDialog } from "@/components/dues/NewDueDialog";
 import { api } from "@/lib/api";
 import { useActiveClub } from "@/lib/club";
 import { useClubMutation } from "@/lib/mutation";
@@ -156,6 +157,7 @@ function MyDuesSection() {
 function ClubDuesSection() {
   const { club, clubPath, key } = useActiveClub();
   const [month, setMonth] = useState(currentMonth);
+  const [creating, setCreating] = useState(false);
   const { data, isLoading } = useQuery({
     queryKey: key("dues", "club", month),
     queryFn: () => api.get<{ overview: FinanceOverview; items: DueDTO[] }>(clubPath(`/dues?month=${month}`)),
@@ -167,7 +169,7 @@ function ClubDuesSection() {
       onSuccess: (r) =>
         r.created > 0
           ? toast.success(`${r.created} mensalidade${r.created === 1 ? "" : "s"} gerada${r.created === 1 ? "" : "s"}`)
-          : toast.info("Todos os associados já têm a mensalidade deste mês."),
+          : toast.info("Todos os associados (não isentos) já têm a mensalidade deste mês. Para refazer uma excluída, use Nova cobrança."),
     },
   );
   const mark = useClubMutation(
@@ -176,7 +178,7 @@ function ClubDuesSection() {
     { success: undefined },
   );
   const remove = useClubMutation((due: DueDTO) => api.delete(clubPath(`/dues/${due.id}`)), {
-    success: "Cobrança excluída",
+    success: "Cobrança excluída. Para cobrar de novo, use Nova cobrança.",
   });
 
   const o = data?.overview;
@@ -244,13 +246,22 @@ function ClubDuesSection() {
             </p>
           </section>
 
-          {club.monthlyFee > 0 && month < currentMonth() && data.items.length === 0 ? (
-            <Button variant="outline" className="w-full" disabled={generate.isPending} onClick={() => generate.mutate(undefined)}>
-              <Wallet className="mr-2 h-4 w-4" />
-              {generate.isPending
-                ? "Gerando…"
-                : `Gerar mensalidades de ${fmtMonth(month).split(" ")[0]} (${money(club.monthlyFee)} cada)`}
+          <div className="grid gap-2 sm:grid-cols-2">
+            {club.monthlyFee > 0 ? (
+              <Button variant="outline" disabled={generate.isPending} onClick={() => generate.mutate(undefined)}>
+                <Wallet className="mr-2 h-4 w-4" />
+                {generate.isPending ? "Gerando…" : `Gerar mensalidades de ${fmtMonth(month).split(" ")[0]}`}
+              </Button>
+            ) : null}
+            <Button onClick={() => setCreating(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Nova cobrança
             </Button>
+          </div>
+          {club.monthlyFee > 0 ? (
+            <p className="-mt-3 text-xs text-muted-foreground">
+              Gerar cria {money(club.monthlyFee)} só para quem ainda não tem cobrança no mês. Nova cobrança é para um
+              associado só, com valor e vencimento à sua escolha.
+            </p>
           ) : null}
 
           {data.items.length === 0 ? (
@@ -321,6 +332,7 @@ function ClubDuesSection() {
           )}
         </>
       )}
+      <NewDueDialog open={creating} month={month} onOpenChange={setCreating} />
     </div>
   );
 }

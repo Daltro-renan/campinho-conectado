@@ -59,7 +59,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="stadium px-6 pb-10 pt-8 text-pitch-foreground">
+      <header className="stadium stadium-dim px-6 pb-10 pt-8 text-pitch-foreground">
         <div className="mx-auto max-w-xl">
           <div className="flex items-center justify-between">
             <p className="flex items-center gap-2.5 font-display text-lg font-semibold uppercase tracking-wide">

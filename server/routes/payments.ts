@@ -73,7 +73,7 @@ async function payableDue(req: Parameters<typeof clubCtx>[0]): Promise<Due> {
     .select()
     .from(dues)
     .where(and(eq(dues.id, idParam(req.params.dueId, "Mensalidade")), eq(dues.clubId, club.id)));
-  if (!due) throw notFound("Mensalidade não encontrada");
+  if (!due || due.canceledAt) throw notFound("Mensalidade não encontrada");
   if (due.userId !== user.id && !can(role, "finance.manage")) throw forbidden();
   return due;
 }

@@ -43,7 +43,7 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen md:grid md:grid-cols-[1.1fr_1fr]">
       {/* Faixa do gramado com a marca */}
-      <section className="stadium relative flex flex-col justify-between overflow-hidden px-6 py-8 text-pitch-foreground md:px-12 md:py-12">
+      <section className="stadium stadium-dim relative flex flex-col justify-between overflow-hidden px-6 py-8 text-pitch-foreground md:px-12 md:py-12">
         <p className="flex items-center gap-2.5 font-display text-lg font-semibold uppercase tracking-wide">
           <AppLogo size={36} /> Campinho Conectado
         </p>

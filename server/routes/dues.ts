@@ -7,7 +7,7 @@ import { createDueSchema, generateDuesSchema, markDuePaidSchema } from "@shared/
 import type { DueDTO, FinanceOverview, OverdueMemberDTO, OverdueReport } from "@shared/api";
 import { currentUser } from "../lib/auth";
 import { clubCtx, requireCapability } from "../lib/club";
-import { badRequest, idParam, notFound, parse } from "../lib/http";
+import { badRequest, conflict, idParam, notFound, parse } from "../lib/http";
 import { currentMonth, summarizeDues, toDueDTO, todayISO } from "../lib/dto";
 import { ensureMonthlyDues } from "../lib/auto-dues";
 
@@ -24,7 +24,7 @@ duesRouter.get("/dues/me", async (req, res) => {
   const rows = await db
     .select()
     .from(dues)
-    .where(and(eq(dues.clubId, club.id), eq(dues.userId, user.id)))
+    .where(and(eq(dues.clubId, club.id), eq(dues.userId, user.id), isNull(dues.canceledAt)))
     .orderBy(desc(dues.referenceMonth));
   const items = rows.map((d) => toDueDTO(d, user.name));
   res.json({ summary: summarizeDues(items), items, pixKey: club.pixKey });
@@ -42,7 +42,7 @@ duesRouter.get("/dues", requireCapability("finance.manage"), async (req, res) =>
     .select({ due: dues, name: users.name })
     .from(dues)
     .innerJoin(users, eq(users.id, dues.userId))
-    .where(and(eq(dues.clubId, club.id), eq(dues.referenceMonth, month)))
+    .where(and(eq(dues.clubId, club.id), eq(dues.referenceMonth, month), isNull(dues.canceledAt)))
     .orderBy(asc(users.name));
 
   const items: DueDTO[] = rows.map((r) => toDueDTO(r.due, r.name));
@@ -86,7 +86,7 @@ duesRouter.get("/dues/overdue", requireCapability("finance.manage"), async (req,
     .from(dues)
     .innerJoin(users, eq(users.id, dues.userId))
     .innerJoin(memberships, and(eq(memberships.userId, dues.userId), eq(memberships.clubId, dues.clubId)))
-    .where(and(eq(dues.clubId, club.id), isNull(dues.paidAt), lt(dues.dueDate, today)))
+    .where(and(eq(dues.clubId, club.id), isNull(dues.paidAt), isNull(dues.canceledAt), lt(dues.dueDate, today)))
     .orderBy(asc(dues.dueDate));
 
   const byUser = new Map<number, OverdueMemberDTO>();
@@ -120,7 +120,7 @@ duesRouter.get("/dues/overdue", requireCapability("finance.manage"), async (req,
   const [{ charged }] = await db
     .select({ charged: sql<number>`count(distinct ${dues.userId})::int` })
     .from(dues)
-    .where(eq(dues.clubId, club.id));
+    .where(and(eq(dues.clubId, club.id), isNull(dues.canceledAt)));
 
   const report: OverdueReport = {
     members,
@@ -142,10 +142,35 @@ duesRouter.post("/dues", requireCapability("finance.manage"), async (req, res) =
     .where(and(eq(memberships.clubId, club.id), eq(memberships.userId, data.userId)));
   if (!member) throw badRequest("Associado não encontrado no clube");
 
-  const [due] = await db
-    .insert(dues)
-    .values({ ...data, clubId: club.id })
-    .returning();
+  // Uma cobrança por associado por mês: se havia uma excluída, ela volta com os dados novos
+  const [existing] = await db
+    .select()
+    .from(dues)
+    .where(and(eq(dues.clubId, club.id), eq(dues.userId, data.userId), eq(dues.referenceMonth, data.referenceMonth)));
+  if (existing && !existing.canceledAt) {
+    throw conflict(`${member.name} já tem a cobrança deste mês. Edite ou exclua a que existe.`);
+  }
+  const [due] = existing
+    ? await db
+        .update(dues)
+        .set({
+          amount: data.amount,
+          dueDate: data.dueDate,
+          notes: data.notes ?? null,
+          canceledAt: null,
+          paidAt: null,
+          method: null,
+          mpPaymentId: null,
+          pixQrCode: null,
+          pixQrBase64: null,
+          pixExpiresAt: null,
+        })
+        .where(eq(dues.id, existing.id))
+        .returning()
+    : await db
+        .insert(dues)
+        .values({ ...data, clubId: club.id })
+        .returning();
   res.status(201).json(toDueDTO(due, member.name));
 });
 
@@ -154,7 +179,7 @@ async function findDue(clubId: number, dueId: number) {
     .select({ due: dues, name: users.name })
     .from(dues)
     .innerJoin(users, eq(users.id, dues.userId))
-    .where(and(eq(dues.id, dueId), eq(dues.clubId, clubId)));
+    .where(and(eq(dues.id, dueId), eq(dues.clubId, clubId), isNull(dues.canceledAt)));
   if (!row) throw notFound("Mensalidade não encontrada");
   return row;
 }
@@ -179,6 +204,7 @@ duesRouter.patch("/dues/:dueId", requireCapability("finance.manage"), async (req
 duesRouter.delete("/dues/:dueId", requireCapability("finance.manage"), async (req, res) => {
   const { club } = clubCtx(req);
   const { due } = await findDue(club.id, idParam(req.params.dueId, "Mensalidade"));
-  await db.delete(dues).where(eq(dues.id, due.id));
+  // Não apaga de vez: marca como cancelada para a geração automática não recriar
+  await db.update(dues).set({ canceledAt: new Date() }).where(eq(dues.id, due.id));
   res.json({ ok: true });
 });
