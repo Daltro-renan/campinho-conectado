@@ -28,8 +28,8 @@ export function parse<S extends ZodTypeAny>(schema: S, data: unknown): z.output<
 }
 
 /** Converte um parâmetro de rota em número inteiro positivo. */
-export function idParam(value: string | undefined, label = "id"): number {
-  const n = Number(value);
+export function idParam(value: string | string[] | undefined, label = "id"): number {
+  const n = Number(Array.isArray(value) ? value[0] : value);
   if (!Number.isInteger(n) || n <= 0) throw badRequest(`${label} inválido`);
   return n;
 }

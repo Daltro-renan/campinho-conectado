@@ -13,7 +13,7 @@ import { can } from "@shared/roles";
 
 export const chatRouter = Router({ mergeParams: true });
 
-function channelParam(value: string | undefined, role: Role): Channel {
+function channelParam(value: string | string[] | undefined, role: Role): Channel {
   const channel = parse(channelSchema, value);
   if (!canAccessChannel(role, channel)) throw forbidden("Você não tem acesso a este canal");
   return channel;
