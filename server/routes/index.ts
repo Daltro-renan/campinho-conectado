@@ -9,6 +9,9 @@ import { gamesRouter } from "./games";
 import { duesRouter } from "./dues";
 import { chatRouter } from "./chat";
 import { overviewRouter } from "./overview";
+import { calendarRouter } from "./calendar";
+import { paymentsRouter, webhookRouter } from "./payments";
+import { env } from "../env";
 
 export function apiRouter() {
   const api = Router();
@@ -17,7 +20,15 @@ export function apiRouter() {
     res.json({ ok: true });
   });
 
+  /** Configuração pública lida pelo app ao abrir (ex.: ID do login Google) */
+  api.get("/config", (_req, res) => {
+    res.json({ googleClientId: env.googleClientId });
+  });
+
   api.use("/auth", authRouter);
+  // Rotas públicas: link da agenda (token secreto) e aviso do Mercado Pago
+  api.use(calendarRouter);
+  api.use(webhookRouter);
 
   api.use("/clubs", requireAuth);
   api.use("/clubs", clubsRouter);
@@ -31,6 +42,7 @@ export function apiRouter() {
   club.use(duesRouter);
   club.use(chatRouter);
   club.use(overviewRouter);
+  club.use(paymentsRouter);
   api.use("/clubs/:clubId", club);
 
   api.use(() => {

@@ -9,11 +9,14 @@ type Serialized<T> = {
   [K in keyof T]: T[K] extends Date ? string : T[K] extends Date | null ? string | null : T[K];
 };
 
-export type PublicUser = Serialized<Omit<User, "passwordHash">>;
+export type PublicUser = Serialized<Omit<User, "passwordHash" | "googleId">> & {
+  hasPassword: boolean;
+  googleLinked: boolean;
+};
 
 export type AuthResponse = { token: string; user: PublicUser };
 
-export type ClubDTO = Serialized<Club>;
+export type ClubDTO = Serialized<Omit<Club, "mpAccessTokenEnc" | "calendarToken">>;
 
 /**
  * Clube do qual o usuário participa, com o cargo dele.
@@ -23,6 +26,21 @@ export type MyClub = Omit<ClubDTO, "inviteCode"> & {
   inviteCode: string | null;
   role: Role;
   memberCount: number;
+  /** O clube aceita pagamento online pelo Mercado Pago */
+  onlinePayments: boolean;
+  /** Link da agenda do clube (.ics) para assinar no Google Agenda */
+  calendarUrl: string;
+};
+
+/** Configuração pública do servidor, lida pelo app ao abrir */
+export type AppConfig = { googleClientId: string | null };
+
+export type PixCharge = {
+  dueId: number;
+  qrCode: string;
+  qrCodeBase64: string;
+  expiresAt: string | null;
+  amount: number;
 };
 
 export type MemberDTO = {
@@ -72,7 +90,7 @@ export type AttendeeDTO = { userId: number; name: string; avatarUrl: string | nu
 
 export type DueStatus = "pago" | "pendente" | "vencido";
 
-export type DueDTO = Serialized<Due> & {
+export type DueDTO = Serialized<Omit<Due, "pixQrCode" | "pixQrBase64" | "mpPaymentId">> & {
   status: DueStatus;
   memberName: string;
 };

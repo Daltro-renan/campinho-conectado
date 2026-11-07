@@ -13,7 +13,9 @@ import {
 import { can, canManageMember, assignableRoles, type Role } from "@shared/roles";
 import type { MemberDTO, MyClub } from "@shared/api";
 import { currentUser } from "../lib/auth";
-import { clubCtx, loadClub, requireCapability } from "../lib/club";
+import { clubCtx, ensureCalendarToken, loadClub, requireCapability } from "../lib/club";
+import { randomToken } from "../lib/crypto";
+import { env } from "../env";
 import { badRequest, conflict, forbidden, idParam, nonEmpty, notFound, parse } from "../lib/http";
 import { serialize } from "../lib/dto";
 
@@ -37,11 +39,14 @@ async function memberCounts(clubIds: number[]): Promise<Map<number, number>> {
 }
 
 export function toMyClub(club: Club, role: Role, memberCount: number): MyClub {
+  const { mpAccessTokenEnc, calendarToken, ...publicFields } = club;
   return {
-    ...serialize(club),
+    ...serialize(publicFields),
     inviteCode: can(role, "members.manage") ? club.inviteCode : null,
     role,
     memberCount,
+    onlinePayments: !!mpAccessTokenEnc,
+    calendarUrl: calendarToken ? `${env.publicUrl}/api/calendar/${calendarToken}.ics` : "",
   };
 }
 
@@ -56,7 +61,8 @@ clubsRouter.get("/", async (req, res) => {
     .where(eq(memberships.userId, user.id))
     .orderBy(asc(clubs.name));
   const counts = await memberCounts(rows.map((r) => r.club.id));
-  res.json(rows.map((r) => toMyClub(r.club, r.role as Role, counts.get(r.club.id) ?? 1)));
+  const list = await Promise.all(rows.map(async (r) => ({ ...r, club: await ensureCalendarToken(r.club) })));
+  res.json(list.map((r) => toMyClub(r.club, r.role as Role, counts.get(r.club.id) ?? 1)));
 });
 
 clubsRouter.post("/", async (req, res) => {
@@ -66,7 +72,7 @@ clubsRouter.post("/", async (req, res) => {
   const club = await db.transaction(async (tx) => {
     const [created] = await tx
       .insert(clubs)
-      .values({ ...data, inviteCode: newInviteCode(), createdBy: user.id })
+      .values({ ...data, inviteCode: newInviteCode(), calendarToken: randomToken(), createdBy: user.id })
       .returning();
     // Quem cria o clube vira presidente
     await tx.insert(memberships).values({ clubId: created.id, userId: user.id, role: "presidente" });
@@ -80,7 +86,7 @@ clubsRouter.post("/join", async (req, res) => {
   const user = currentUser(req);
   const { inviteCode } = parse(joinClubSchema, req.body);
 
-  const [club] = await db.select().from(clubs).where(eq(clubs.inviteCode, inviteCode));
+  let [club] = await db.select().from(clubs).where(eq(clubs.inviteCode, inviteCode));
   if (!club) throw notFound("Código de convite não encontrado. Confira com a diretoria do clube.");
 
   const [already] = await db
@@ -88,6 +94,7 @@ clubsRouter.post("/join", async (req, res) => {
     .from(memberships)
     .where(and(eq(memberships.clubId, club.id), eq(memberships.userId, user.id)));
   if (already) throw conflict("Você já faz parte deste clube");
+  club = await ensureCalendarToken(club);
 
   // Quem entra por convite começa como jogador
   await db.insert(memberships).values({ clubId: club.id, userId: user.id, role: "jogador" });

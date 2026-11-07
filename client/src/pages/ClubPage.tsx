@@ -17,6 +17,7 @@ import { Field } from "@/components/Field";
 import { ColorField } from "@/components/ColorField";
 import { TeamCrest } from "@/components/TeamCrest";
 import { UserAvatar } from "@/components/UserAvatar";
+import { MercadoPagoConnect } from "@/components/dues/MercadoPagoConnect";
 import { api } from "@/lib/api";
 import { useActiveClub } from "@/lib/club";
 import { useAuth } from "@/lib/auth";
@@ -30,6 +31,7 @@ export default function ClubPage() {
     <div>
       <PageHeader title="Clube" description="Dados do clube, convites e associados." />
       {can("club.edit") ? <ClubForm /> : <ClubSummary club={club} />}
+      {can("club.edit") ? <MercadoPagoConnect /> : null}
       {can("members.manage") && club.inviteCode ? <InviteSection club={club} /> : null}
       <MembersSection />
       <DangerZone isPresident={role === "presidente"} />

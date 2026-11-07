@@ -11,6 +11,7 @@ import { ConfirmAction } from "@/components/ConfirmAction";
 import { GameRow } from "@/components/games/GameRow";
 import { GameFormDialog } from "@/components/games/GameFormDialog";
 import { ResultDialog } from "@/components/games/ResultDialog";
+import { CalendarSubscribe } from "@/components/games/CalendarSubscribe";
 import { api } from "@/lib/api";
 import { useActiveClub } from "@/lib/club";
 import { useClubMutation } from "@/lib/mutation";
@@ -125,6 +126,8 @@ export default function GamesPage() {
           ))}
         </div>
       )}
+
+      <CalendarSubscribe />
 
       {manage ? (
         <>

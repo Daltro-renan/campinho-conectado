@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/Field";
+import { GoogleButton } from "@/components/GoogleButton";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { AuthResponse } from "@shared/api";
@@ -96,6 +97,8 @@ export default function AuthPage() {
               </button>
             ))}
           </div>
+
+          <GoogleButton />
 
           <form onSubmit={submit} className="space-y-4" noValidate>
             {mode === "cadastrar" ? (

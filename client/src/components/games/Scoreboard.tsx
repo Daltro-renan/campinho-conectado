@@ -1,4 +1,5 @@
-import { MapPin } from "lucide-react";
+import { CalendarPlus, MapPin, Navigation } from "lucide-react";
+import { googleCalendarUrl, mapsDirectionsUrl } from "@/lib/google-links";
 import type { GameDTO } from "@shared/api";
 import { COMPETITION_LABELS } from "@shared/validation";
 import { daysUntil, fmtGameDay, fmtTime } from "@/lib/format";
@@ -51,6 +52,26 @@ export function Scoreboard({ game }: { game: GameDTO }) {
           <span className="truncate">{game.location || "Local a definir"}</span>
         </span>
         <AttendanceToggle game={game} tone="pitch" />
+      </div>
+      <div className="flex flex-wrap gap-2 bg-black/15 px-5 pb-3">
+        <a
+          href={googleCalendarUrl(game)}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-sm font-semibold hover:bg-white/20"
+        >
+          <CalendarPlus className="h-4 w-4" aria-hidden /> Adicionar à agenda
+        </a>
+        {game.location ? (
+          <a
+            href={mapsDirectionsUrl(game.location)}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-sm font-semibold hover:bg-white/20"
+          >
+            <Navigation className="h-4 w-4" aria-hidden /> Como chegar
+          </a>
+        ) : null}
       </div>
     </section>
   );

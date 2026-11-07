@@ -18,6 +18,7 @@ import {
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState, LoadingRows } from "@/components/EmptyState";
 import { StatusPill } from "@/components/StatusPill";
+import { PayDueDialog } from "@/components/dues/PayDueDialog";
 import { api } from "@/lib/api";
 import { useActiveClub } from "@/lib/club";
 import { useClubMutation } from "@/lib/mutation";
@@ -53,7 +54,8 @@ export default function DuesPage() {
 }
 
 function MyDuesSection() {
-  const { clubPath, key } = useActiveClub();
+  const { club, clubPath, key } = useActiveClub();
+  const [paying, setPaying] = useState<DueDTO | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: key("dues", "me"),
     queryFn: () => api.get<MyDues>(clubPath("/dues/me")),
@@ -83,7 +85,12 @@ function MyDuesSection() {
             {summary.next ? `. Vencimento: ${fmtDate(parseDay(summary.next.dueDate))}` : ""}
           </p>
         ) : null}
-        {pixKey && summary.openCount > 0 ? (
+        {club.onlinePayments && summary.next ? (
+          <Button size="lg" className="mt-4 w-full sm:w-auto" onClick={() => setPaying(summary.next)}>
+            <Wallet className="mr-2 h-4 w-4" /> Pagar {money(summary.next.amount)} agora
+          </Button>
+        ) : null}
+        {!club.onlinePayments && pixKey && summary.openCount > 0 ? (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted px-4 py-3">
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Chave PIX do clube</p>
@@ -103,7 +110,7 @@ function MyDuesSection() {
             </Button>
           </div>
         ) : null}
-        {summary.openCount > 0 ? (
+        {summary.openCount > 0 && !club.onlinePayments ? (
           <p className="mt-3 text-xs text-muted-foreground">
             Depois de pagar, avise a diretoria para darem baixa na mensalidade.
           </p>
@@ -132,10 +139,16 @@ function MyDuesSection() {
                 <span className="block font-semibold tabular-nums">{money(d.amount)}</span>
                 <StatusPill status={d.status} labels={{ pago: "Paga" }} className="mt-1" />
               </span>
+              {club.onlinePayments && d.status !== "pago" ? (
+                <Button size="sm" variant="outline" onClick={() => setPaying(d)}>
+                  Pagar
+                </Button>
+              ) : null}
             </li>
           ))}
         </ul>
       )}
+      <PayDueDialog due={paying} onOpenChange={(open) => !open && setPaying(null)} />
     </div>
   );
 }

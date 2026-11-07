@@ -22,8 +22,13 @@ export function signToken(userId: number): string {
 }
 
 export function toPublicUser(user: User): PublicUser {
-  const { passwordHash: _omit, ...rest } = user;
-  return { ...rest, createdAt: user.createdAt.toISOString() };
+  const { passwordHash, googleId, ...rest } = user;
+  return {
+    ...rest,
+    createdAt: user.createdAt.toISOString(),
+    hasPassword: !!passwordHash,
+    googleLinked: !!googleId,
+  };
 }
 
 /** Exige um usuário logado; carrega o usuário do banco em `req.user`. */

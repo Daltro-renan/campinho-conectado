@@ -21,6 +21,8 @@ Aplicativo de gestão para associações e clubes de futebol amador. Ele reúne 
 - **Jogos:** marcar jogos contra times de fora ou entre times do próprio clube, lançar o placar, cancelar e ver o histórico.
 - **Times:** categorias do clube (Principal, Sub-17, Veteranos…) com cores, escudo, técnico e elenco. Cada jogador tem número, posição, situação e os números da temporada.
 - **Mensalidades:** cada associado vê as suas e a chave PIX do clube. A diretoria gera as cobranças do mês para todos de uma vez, dá baixa informando a forma de pagamento e acompanha quanto entrou. Associados podem ser marcados como isentos.
+- **Pagamento online (Mercado Pago):** cada clube conecta a própria conta, e o associado paga com PIX (QR Code ou copia e cola) ou cartão. A baixa acontece sozinha quando o pagamento é aprovado.
+- **Google:** "Entrar com Google" (site e Android), "Adicionar à agenda" em cada jogo, link da agenda do clube para assinar no Google Agenda, e mapa com "Como chegar" no local do jogo.
 - **Chat:** três canais. O Geral é para todos, o Comissão técnica para técnicos e diretoria, e o Diretoria só para presidente e diretoria.
 
 ## Tecnologias
@@ -93,10 +95,25 @@ npx cap sync
 npx cap open android       # abre no Android Studio
 ```
 
+## Integrações
+
+### Entrar com Google
+
+1. No [Google Cloud Console](https://console.cloud.google.com/apis/credentials), crie um projeto e configure a tela de consentimento OAuth (tipo Externo).
+2. Crie um **ID do cliente OAuth → Aplicativo da Web**. Em *Origens JavaScript autorizadas*, coloque o endereço do site (ex.: `https://campinho-conectado.onrender.com`) e `http://localhost:5000`.
+3. Crie outro **ID do cliente OAuth → Android**, com o pacote `br.com.campinhoconectado.app` e o SHA-1 que está em `android-config/README.md`.
+4. Coloque o ID do cliente **Web** na variável `GOOGLE_CLIENT_ID` do servidor. O app lê esse valor do servidor, então não é preciso gerar outro APK.
+
+### Mercado Pago
+
+Não há configuração no servidor. O presidente de cada clube abre **Clube → Pagamento online** e cola o *Access Token de produção* da conta Mercado Pago do clube. O token fica guardado criptografado. O aviso de pagamento (webhook) é configurado automaticamente em cada cobrança.
+
+### Google Agenda e Maps
+
+Não precisam de chave. Os links são gerados pelo próprio app.
+
 ## Próximos passos sugeridos
 
-- Pagamento online da mensalidade (PIX com QR Code, via Mercado Pago ou Stripe)
-- Login com Google
 - Envio de fotos (escudo, foto de perfil) direto do celular
 - Escalação e súmula por jogo (gols e cartões lançados por partida)
 - Notificações de jogo marcado e de mensalidade vencendo

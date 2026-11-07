@@ -42,13 +42,20 @@ export const updateProfileSchema = z.object({
   phone: optionalText(30),
 });
 
+export const googleLoginSchema = z.object({
+  idToken: z.string().min(20, "Login com Google inválido"),
+});
+
 export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, "Informe a senha atual"),
+  /** Opcional para contas criadas com o Google, que ainda não têm senha */
+  currentPassword: z.string().optional(),
   newPassword: z.string().min(8, "A nova senha precisa ter pelo menos 8 caracteres").max(100),
 });
 
 export const deleteAccountSchema = z.object({
-  password: z.string().min(1, "Informe sua senha"),
+  password: z.string().optional(),
+  /** Contas só com Google confirmam digitando o e-mail */
+  confirmEmail: z.string().optional(),
 });
 
 // ---------- Clube ----------
@@ -202,6 +209,13 @@ export const markDuePaidSchema = z.object({
   paid: z.boolean(),
   method: z.enum(PAYMENT_METHODS).optional().nullable(),
   notes: optionalText(200),
+});
+
+export const connectMercadoPagoSchema = z.object({
+  accessToken: z
+    .string()
+    .trim()
+    .regex(/^(APP_USR|TEST)-[\w-]{20,}$/, "Cole o Access Token completo (começa com APP_USR-)"),
 });
 
 // ---------- Chat e avisos ----------

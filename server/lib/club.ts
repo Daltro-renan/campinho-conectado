@@ -8,6 +8,7 @@ import { db } from "../db";
 import { memberships, clubs, type Club, type Membership } from "@shared/schema";
 import { can, type Capability, type Role } from "@shared/roles";
 import { currentUser } from "./auth";
+import { randomToken } from "./crypto";
 import { forbidden, idParam, notFound } from "./http";
 
 export type ClubContext = { club: Club; membership: Membership; role: Role };
@@ -32,7 +33,8 @@ export async function loadClub(req: Request, _res: Response, next: NextFunction)
     .where(and(eq(memberships.clubId, clubId), eq(memberships.userId, user.id)));
 
   if (!row) throw notFound("Clube não encontrado ou você não faz parte dele");
-  req.clubCtx = { club: row.club, membership: row.membership, role: row.membership.role as Role };
+  const club = await ensureCalendarToken(row.club);
+  req.clubCtx = { club, membership: row.membership, role: row.membership.role as Role };
   next();
 }
 
@@ -48,4 +50,15 @@ export function requireCapability(capability: Capability) {
     if (!can(role, capability)) throw forbidden();
     next();
   };
+}
+
+/** Clubes antigos não têm token de agenda: cria na primeira leitura. */
+export async function ensureCalendarToken(club: Club): Promise<Club> {
+  if (club.calendarToken) return club;
+  const [updated] = await db
+    .update(clubs)
+    .set({ calendarToken: randomToken() })
+    .where(eq(clubs.id, club.id))
+    .returning();
+  return updated;
 }

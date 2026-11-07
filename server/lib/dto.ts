@@ -37,7 +37,8 @@ export function dueStatus(due: Pick<Due, "paidAt" | "dueDate">): DueStatus {
 }
 
 export function toDueDTO(due: Due, memberName: string): DueDTO {
-  return { ...serialize(due), status: dueStatus(due), memberName };
+  const { pixQrCode: _q, pixQrBase64: _b, mpPaymentId: _m, ...rest } = due;
+  return { ...serialize(rest), status: dueStatus(due), memberName };
 }
 
 export function summarizeDues(list: DueDTO[]): DuesSummary {

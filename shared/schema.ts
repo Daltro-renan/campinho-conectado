@@ -19,7 +19,9 @@ import {
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
+  /** Vazio em contas criadas só com o Google */
+  passwordHash: text("password_hash"),
+  googleId: text("google_id").unique(),
   name: text("name").notNull(),
   avatarUrl: text("avatar_url"),
   phone: text("phone"),
@@ -44,6 +46,12 @@ export const clubs = pgTable("clubs", {
   /** Chave PIX exibida para os associados pagarem */
   pixKey: text("pix_key"),
   inviteCode: text("invite_code").notNull().unique(),
+  /** Token secreto do link de agenda (.ics) do clube */
+  calendarToken: text("calendar_token").unique(),
+  /** Access Token do Mercado Pago do clube, criptografado (nunca sai do servidor) */
+  mpAccessTokenEnc: text("mp_access_token_enc"),
+  /** Nome/e-mail da conta Mercado Pago conectada, para exibição */
+  mpAccountLabel: text("mp_account_label"),
   createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -158,6 +166,11 @@ export const dues = pgTable(
     paidAt: timestamp("paid_at", { withTimezone: true }),
     method: text("method"),
     notes: text("notes"),
+    /** Último pagamento PIX gerado no Mercado Pago para esta mensalidade */
+    mpPaymentId: text("mp_payment_id"),
+    pixQrCode: text("pix_qr_code"),
+    pixQrBase64: text("pix_qr_base64"),
+    pixExpiresAt: timestamp("pix_expires_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [

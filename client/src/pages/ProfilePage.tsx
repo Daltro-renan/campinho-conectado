@@ -56,7 +56,7 @@ export default function ProfilePage() {
 
       <MyClubs />
       <ProfileForm user={user} />
-      <PasswordForm />
+      <PasswordForm hasPassword={user.hasPassword} />
       <ThemePicker />
 
       <SectionTitle>Conta</SectionTitle>
@@ -64,7 +64,7 @@ export default function ProfilePage() {
         <Button variant="outline" onClick={signOut}>
           <LogOut className="mr-2 h-4 w-4" /> Sair da conta
         </Button>
-        <DeleteAccount />
+        <DeleteAccount hasPassword={user.hasPassword} email={user.email} />
       </div>
     </div>
   );
@@ -163,13 +163,15 @@ function ProfileForm({ user }: { user: PublicUser }) {
   );
 }
 
-function PasswordForm() {
+function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
+  const { user, setUser } = useAuth();
   const [form, setForm] = useState({ currentPassword: "", newPassword: "" });
   const change = useMutation({
     mutationFn: () => api.post("/auth/password", form),
     onSuccess: () => {
       setForm({ currentPassword: "", newPassword: "" });
-      toast.success("Senha alterada");
+      if (user && !hasPassword) setUser({ ...user, hasPassword: true });
+      toast.success(hasPassword ? "Senha alterada" : "Senha criada. Agora você também pode entrar com e-mail e senha.");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -177,23 +179,33 @@ function PasswordForm() {
   return (
     <>
       <SectionTitle>Senha</SectionTitle>
+      {!hasPassword ? (
+        <p className="mb-3 text-sm text-muted-foreground">
+          Você entra com o Google. Se quiser, crie uma senha para entrar também com e-mail.
+        </p>
+      ) : null}
       <form
-        className="grid gap-4 rounded-lg border bg-card p-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+        className={cn(
+          "grid gap-4 rounded-lg border bg-card p-5 sm:items-end",
+          hasPassword ? "sm:grid-cols-[1fr_1fr_auto]" : "sm:grid-cols-[1fr_auto]",
+        )}
         onSubmit={(e: FormEvent) => {
           e.preventDefault();
           change.mutate();
         }}
       >
-        <Field label="Senha atual" htmlFor="pw-current">
-          <Input
-            id="pw-current"
-            type="password"
-            autoComplete="current-password"
-            value={form.currentPassword}
-            onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
-            required
-          />
-        </Field>
+        {hasPassword ? (
+          <Field label="Senha atual" htmlFor="pw-current">
+            <Input
+              id="pw-current"
+              type="password"
+              autoComplete="current-password"
+              value={form.currentPassword}
+              onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
+              required
+            />
+          </Field>
+        ) : null}
         <Field label="Nova senha" htmlFor="pw-new">
           <Input
             id="pw-new"
@@ -205,7 +217,7 @@ function PasswordForm() {
           />
         </Field>
         <Button type="submit" variant="outline" disabled={change.isPending}>
-          Alterar senha
+          {hasPassword ? "Alterar senha" : "Criar senha"}
         </Button>
       </form>
     </>
@@ -245,11 +257,11 @@ function ThemePicker() {
   );
 }
 
-function DeleteAccount() {
+function DeleteAccount({ hasPassword, email }: { hasPassword: boolean; email: string }) {
   const { signOut } = useAuth();
   const [password, setPassword] = useState("");
   const remove = useMutation({
-    mutationFn: () => api.delete("/auth/me", { password }),
+    mutationFn: () => api.delete("/auth/me", hasPassword ? { password } : { confirmEmail: password }),
     onSuccess: () => {
       toast.success("Conta excluída");
       signOut();
@@ -269,16 +281,16 @@ function DeleteAccount() {
           <AlertDialogTitle>Excluir sua conta?</AlertDialogTitle>
           <AlertDialogDescription>
             Você sai de todos os clubes e seus dados são apagados. Clubes em que você é o único associado também
-            serão excluídos. Digite sua senha para confirmar.
+            serão excluídos. {hasPassword ? "Digite sua senha para confirmar." : `Digite seu e-mail (${email}) para confirmar.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <Input
-          type="password"
-          autoComplete="current-password"
+          type={hasPassword ? "password" : "email"}
+          autoComplete={hasPassword ? "current-password" : "off"}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          aria-label="Sua senha"
-          placeholder="Sua senha"
+          aria-label={hasPassword ? "Sua senha" : "Seu e-mail"}
+          placeholder={hasPassword ? "Sua senha" : "Seu e-mail"}
         />
         <AlertDialogFooter>
           <AlertDialogCancel>Voltar</AlertDialogCancel>

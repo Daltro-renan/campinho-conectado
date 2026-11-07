@@ -45,6 +45,10 @@ jobs:
           VITE_API_URL: ${{ vars.API_URL || 'https://campinho-conectado.onrender.com' }}
       - run: npx cap add android
       - run: npx cap sync android
+      # Assina sempre com a mesma chave (android-config/debug.keystore), para que o
+      # "Entrar com Google" reconheça o app (SHA-1 cadastrado no Google Cloud).
+      - name: Usar a chave fixa de assinatura
+        run: mkdir -p ~/.android && cp android-config/debug.keystore ~/.android/debug.keystore
       - name: Gerar APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon

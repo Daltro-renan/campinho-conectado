@@ -13,6 +13,7 @@ import { fmtDate, fmtTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { gameOutcome, gameSides } from "./GameSides";
 import { AttendanceToggle } from "./AttendanceToggle";
+import { GameExtras } from "./GameExtras";
 
 const OUTCOME_STYLE = {
   V: "bg-ok text-white",
@@ -65,8 +66,9 @@ export function GameRow({ game, actions }: { game: GameDTO; actions?: Actions })
         ) : awaitingResult ? (
           <p className="mt-2 text-xs font-semibold text-warn-foreground dark:text-warn">Aguardando resultado</p>
         ) : !finished ? (
-          <div className="mt-3">
+          <div className="mt-3 space-y-3">
             <AttendanceToggle game={game} />
+            <GameExtras game={game} />
           </div>
         ) : null}
       </div>

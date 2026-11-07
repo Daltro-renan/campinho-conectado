@@ -23,10 +23,16 @@ function jwtSecret(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
+const port = Number(process.env.PORT) || 5000;
+
 export const env = {
   isProduction,
-  port: Number(process.env.PORT) || 5000,
+  port,
   host: process.env.HOST || "0.0.0.0",
   databaseUrl: required("DATABASE_URL"),
   jwtSecret: jwtSecret(),
+  /** ID do cliente OAuth "Aplicativo da Web" do Google (opcional) */
+  googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+  /** Endereço público do servidor — o Render preenche RENDER_EXTERNAL_URL sozinho */
+  publicUrl: (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`).replace(/\/$/, ""),
 };
