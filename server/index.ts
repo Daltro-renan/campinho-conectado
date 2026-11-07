@@ -3,6 +3,7 @@ import { env } from "./env";
 import { apiRouter } from "./routes";
 import { errorHandler } from "./lib/http";
 import { log, serveClient } from "./vite";
+import { migrate } from "./migrate";
 
 const app = express();
 app.disable("x-powered-by");
@@ -33,6 +34,7 @@ app.use("/api", (req, res, next) => {
 app.use("/api", apiRouter());
 app.use("/api", errorHandler);
 
+await migrate();
 await serveClient(app);
 
 app.listen(env.port, env.host, () => {
