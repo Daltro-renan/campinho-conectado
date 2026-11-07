@@ -105,3 +105,23 @@ jobs:
             --title "App Android" --prerelease --target "$GITHUB_SHA" \
             --notes "Baixe campinho-conectado.apk no celular Android e instale (permita instalar de fontes desconhecidas)."
           gh release upload app-android campinho-conectado.apk --clobber
+
+  # Publica o servidor no Render depois que tudo compilou.
+  # Configure uma vez: Render → serviço → Settings → Deploy Hook → copie a URL e
+  # cole no GitHub em Settings → Secrets and variables → Actions → New repository
+  # secret, com o nome RENDER_DEPLOY_HOOK. Sem o segredo, este passo é ignorado.
+  deploy:
+    name: Publicar no Render
+    needs: android
+    if: github.ref == 'refs/heads/reestruturacao' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar deploy
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "RENDER_DEPLOY_HOOK não configurado: faça o deploy manual no Render."
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" > /dev/null && echo "Deploy disparado no Render."
