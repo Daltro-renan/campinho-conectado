@@ -1,9 +1,9 @@
 /** Jogos, resultados e confirmação de presença. */
 import { Router } from "express";
-import { and, asc, desc, eq, gte, lt, ne, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt, ne, or } from "drizzle-orm";
 import { db } from "../db";
-import { attendances, games, users } from "@shared/schema";
-import { attendanceSchema, gameSchema, updateGameSchema } from "@shared/validation";
+import { attendances, gamePlayers, games, memberships, users } from "@shared/schema";
+import { attendanceSchema, gameSchema, lineupSchema, resultSchema, updateGameSchema } from "@shared/validation";
 import type { AttendeeDTO } from "@shared/api";
 import { currentUser } from "../lib/auth";
 import { clubCtx, requireCapability } from "../lib/club";
@@ -134,4 +134,67 @@ gamesRouter.get("/games/:gameId/attendance", async (req, res) => {
     .orderBy(asc(users.name));
   const list: AttendeeDTO[] = rows;
   res.json(list);
+});
+
+// ---------- Escalação e resultado ----------
+
+/** Define quem joga em cada lado (substitui a escalação anterior, mantendo gols já lançados) */
+gamesRouter.put("/games/:gameId/lineup", requireCapability("squad.manage"), async (req, res) => {
+  const { club } = clubCtx(req);
+  const game = await findGame(club.id, idParam(req.params.gameId, "Jogo"));
+  const { players } = parse(lineupSchema, req.body);
+
+  const ids = [...new Set(players.map((p) => p.userId))];
+  if (ids.length) {
+    const members = await db
+      .select({ userId: memberships.userId })
+      .from(memberships)
+      .where(and(eq(memberships.clubId, club.id), inArray(memberships.userId, ids)));
+    if (members.length !== ids.length) throw badRequest("Só associados do clube podem ser escalados");
+  }
+  if (game.kind !== "racha" && players.some((p) => p.side === "B")) {
+    throw badRequest("No jogo contra adversário, todos os escalados jogam pelo clube");
+  }
+
+  const previous = await db.select().from(gamePlayers).where(eq(gamePlayers.gameId, game.id));
+  const prevStats = new Map(previous.map((p) => [p.userId, p]));
+  await db.transaction(async (tx) => {
+    await tx.delete(gamePlayers).where(eq(gamePlayers.gameId, game.id));
+    if (players.length) {
+      await tx.insert(gamePlayers).values(
+        players.map((p) => ({
+          gameId: game.id,
+          userId: p.userId,
+          side: p.side,
+          goals: prevStats.get(p.userId)?.goals ?? 0,
+          assists: prevStats.get(p.userId)?.assists ?? 0,
+        })),
+      );
+    }
+  });
+  const [dto] = await toGameDTOs([game], currentUser(req).id);
+  res.json(dto);
+});
+
+/** Lança o placar e os gols/assistências de cada escalado; o jogo vira "finalizado" */
+gamesRouter.put("/games/:gameId/result", requireCapability("squad.manage"), async (req, res) => {
+  const { club } = clubCtx(req);
+  const game = await findGame(club.id, idParam(req.params.gameId, "Jogo"));
+  const data = parse(resultSchema, req.body);
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(games)
+      .set({ teamScore: data.teamScore, opponentScore: data.opponentScore, status: "finalizado" })
+      .where(eq(games.id, game.id));
+    for (const p of data.players) {
+      await tx
+        .update(gamePlayers)
+        .set({ goals: p.goals, assists: p.assists })
+        .where(and(eq(gamePlayers.gameId, game.id), eq(gamePlayers.userId, p.userId)));
+    }
+  });
+  const [updated] = await db.select().from(games).where(eq(games.id, game.id));
+  const [dto] = await toGameDTOs([updated], currentUser(req).id);
+  res.json(dto);
 });

@@ -31,6 +31,8 @@ const STEPS: string[] = [
   `ALTER TABLE "dues" ADD COLUMN IF NOT EXISTS "pix_qr_code" text`,
   `ALTER TABLE "dues" ADD COLUMN IF NOT EXISTS "pix_qr_base64" text`,
   `ALTER TABLE "dues" ADD COLUMN IF NOT EXISTS "pix_expires_at" timestamp with time zone`,
+  // Foto de perfil enviada pelo app
+  `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "avatar_data" text`,
   // Clube = time: dados de jogador passam para o associado
   `ALTER TABLE "memberships" ADD COLUMN IF NOT EXISTS "nickname" text`,
   `ALTER TABLE "memberships" ADD COLUMN IF NOT EXISTS "position" text`,
@@ -58,6 +60,20 @@ const STEPS: string[] = [
       WHERE p."user_id" = m."user_id" AND p."club_id" = m."club_id";
     END IF;
   END $$`,
+  // Rachas internos (Time A x Time B) e escalação por jogo
+  `ALTER TABLE "games" ADD COLUMN IF NOT EXISTS "kind" text NOT NULL DEFAULT 'externo'`,
+  `ALTER TABLE "games" ADD COLUMN IF NOT EXISTS "side_a_name" text`,
+  `ALTER TABLE "games" ADD COLUMN IF NOT EXISTS "side_b_name" text`,
+  `CREATE TABLE IF NOT EXISTS "game_players" (
+    "id" serial PRIMARY KEY,
+    "game_id" integer NOT NULL REFERENCES "games"("id") ON DELETE CASCADE,
+    "user_id" integer NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+    "side" text NOT NULL,
+    "goals" integer NOT NULL DEFAULT 0,
+    "assists" integer NOT NULL DEFAULT 0
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "game_players_game_user_idx" ON "game_players" ("game_id", "user_id")`,
+  `CREATE INDEX IF NOT EXISTS "game_players_user_idx" ON "game_players" ("user_id")`,
   // Jogos deixam de ter "time": o nome do adversário passa a ser o que vale
   `DO $$ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'games' AND column_name = 'team_id') THEN
@@ -68,7 +84,7 @@ const STEPS: string[] = [
       END IF;
     END IF;
   END $$`,
-  `UPDATE "games" SET "opponent_name" = 'Adversário' WHERE "opponent_name" IS NULL`,
+  `UPDATE "games" SET "opponent_name" = 'Adversário' WHERE "opponent_name" IS NULL AND "kind" = 'externo'`,
 ];
 
 export async function migrate() {

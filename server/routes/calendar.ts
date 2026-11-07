@@ -55,8 +55,9 @@ calendarRouter.get("/calendar/:file", async (req, res) => {
   ];
 
   for (const g of list) {
-    const ours = club.name;
-    const theirs = g.opponentName ?? "Adversário";
+    const isRacha = g.kind === "racha";
+    const ours = isRacha ? (g.sideAName ?? "Time A") : club.name;
+    const theirs = isRacha ? (g.sideBName ?? "Time B") : (g.opponentName ?? "Adversário");
     const [home, away] = g.isHome ? [ours, theirs] : [theirs, ours];
     const score =
       g.status === "finalizado" && g.teamScore != null && g.opponentScore != null
@@ -73,7 +74,7 @@ calendarRouter.get("/calendar/:file", async (req, res) => {
       `DTSTAMP:${icsDate(new Date())}`,
       `DTSTART:${icsDate(g.startsAt)}`,
       `DTEND:${icsDate(new Date(g.startsAt.getTime() + GAME_DURATION_MS))}`,
-      fold(`SUMMARY:${esc(`${home} x ${away}${score}`)}`),
+      fold(`SUMMARY:${esc(`${isRacha ? "Racha: " : ""}${home} x ${away}${score}`)}`),
       ...(g.location ? [fold(`LOCATION:${esc(g.location)}`)] : []),
       ...(description ? [fold(`DESCRIPTION:${esc(description)}`)] : []),
       `STATUS:${g.status === "cancelado" ? "CANCELLED" : "CONFIRMED"}`,

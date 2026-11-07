@@ -6,6 +6,7 @@ import {
   Home,
   MessageCircle,
   Shirt,
+  Trophy,
   User,
   Wallet,
   Users,
@@ -23,11 +24,12 @@ const NAV: NavItem[] = [
   { href: "/", label: "Início", icon: Home, mobile: true },
   { href: "/jogos", label: "Jogos", icon: CalendarDays, mobile: true },
   { href: "/elenco", label: "Elenco", icon: Shirt, mobile: true },
+  { href: "/ranking", label: "Ranking", icon: Trophy, mobile: true },
   { href: "/mensalidades", label: "Mensalidades", icon: Wallet },
   { href: "/inadimplencia", label: "Inadimplência", icon: AlertTriangle, finance: true },
   { href: "/chat", label: "Chat", icon: MessageCircle, mobile: true },
   { href: "/clube", label: "Clube", icon: Users },
-  { href: "/perfil", label: "Perfil", icon: User, mobile: true },
+  { href: "/perfil", label: "Perfil", icon: User },
 ];
 
 function isActive(location: string, href: string) {
@@ -91,9 +93,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Barra superior (celular) */}
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/95 px-3 backdrop-blur md:hidden">
           <ClubSwitcher variant="topbar" />
-          <Link href="/mensalidades" aria-label="Mensalidades" className="rounded-md p-2 hover:bg-accent">
-            <Wallet className="h-5 w-5" />
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link href="/mensalidades" aria-label="Mensalidades" className="rounded-md p-2 hover:bg-accent">
+              <Wallet className="h-5 w-5" />
+            </Link>
+            {user ? (
+              <Link href="/perfil" aria-label="Meu perfil" className="rounded-full p-1 hover:bg-accent">
+                <UserAvatar name={user.name} url={user.avatarUrl} className="h-8 w-8" />
+              </Link>
+            ) : null}
+          </div>
         </header>
 
         <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-5 md:px-8 md:pb-12 md:pt-10">

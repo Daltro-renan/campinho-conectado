@@ -1,7 +1,7 @@
 /** Monta os objetos que a API devolve a partir das linhas do banco. */
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
-import { attendances, games, users, type Due, type Game } from "@shared/schema";
+import { attendances, gamePlayers, games, memberships, users, type Due, type Game } from "@shared/schema";
 import type {
   DueDTO,
   DueStatus,
@@ -74,12 +74,34 @@ export async function toGameDTOs(list: Game[], viewerId: number): Promise<GameDT
     .where(and(inArray(attendances.gameId, gameIds), eq(attendances.userId, viewerId)));
   const mineById = new Map(mine.map((m) => [m.gameId, m.status]));
 
+  const lineupRows = await db
+    .select({
+      gameId: gamePlayers.gameId,
+      userId: gamePlayers.userId,
+      side: gamePlayers.side,
+      goals: gamePlayers.goals,
+      assists: gamePlayers.assists,
+      name: users.name,
+      avatarUrl: users.avatarUrl,
+      nickname: memberships.nickname,
+    })
+    .from(gamePlayers)
+    .innerJoin(users, eq(users.id, gamePlayers.userId))
+    .innerJoin(games, eq(games.id, gamePlayers.gameId))
+    .leftJoin(memberships, and(eq(memberships.userId, gamePlayers.userId), eq(memberships.clubId, games.clubId)))
+    .where(inArray(gamePlayers.gameId, gameIds));
+
   return list.map((g) => {
     const countFor = (status: string) =>
       counts.find((c) => c.gameId === g.id && c.status === status)?.total ?? 0;
     return {
       ...serialize(g),
-      opponentName: g.opponentName ?? "Adversário",
+      kind: g.kind === "racha" ? "racha" : "externo",
+      opponentName: g.kind === "racha" ? g.opponentName : (g.opponentName ?? "Adversário"),
+      lineup: lineupRows
+        .filter((l) => l.gameId === g.id)
+        .map(({ gameId: _g, side, ...l }) => ({ ...l, side: side === "B" ? ("B" as const) : ("A" as const) }))
+        .sort((a, b) => a.side.localeCompare(b.side) || a.name.localeCompare(b.name)),
       attendance: {
         confirmed: countFor("confirmado"),
         absent: countFor("ausente"),
@@ -93,12 +115,12 @@ export function emptyRecord(): TeamRecord {
   return { played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0 };
 }
 
-/** Campanha do clube: soma vitórias/empates/derrotas dos jogos finalizados */
+/** Campanha do clube contra adversários de fora (rachas internos não contam) */
 export async function clubRecord(clubId: number): Promise<TeamRecord> {
   const finished = await db
     .select()
     .from(games)
-    .where(and(eq(games.clubId, clubId), eq(games.status, "finalizado")));
+    .where(and(eq(games.clubId, clubId), eq(games.status, "finalizado"), eq(games.kind, "externo")));
   const r = emptyRecord();
   for (const g of finished) {
     if (g.teamScore == null || g.opponentScore == null) continue;

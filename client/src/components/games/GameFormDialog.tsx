@@ -15,6 +15,9 @@ import { cn } from "@/lib/utils";
 
 function initialState(game?: GameDTO | null) {
   return {
+    kind: (game?.kind ?? "racha") as "racha" | "externo",
+    sideAName: game?.sideAName ?? "",
+    sideBName: game?.sideBName ?? "",
     opponentName: game?.opponentName ?? "",
     isHome: game?.isHome ?? true,
     competition: game?.competition ?? "amistoso",
@@ -63,30 +66,71 @@ export function GameFormDialog({
           }}
           className="space-y-4"
         >
-          <Field label={`${club.name} x`} htmlFor="game-opponent">
-            <Input
-              id="game-opponent"
-              placeholder="Nome do adversário, ex.: União FC"
-              value={form.opponentName}
-              onChange={(e) => setForm({ ...form, opponentName: e.target.value })}
-              required
-            />
-          </Field>
-
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">Mando de campo</legend>
+            <legend className="text-sm font-medium">Tipo de jogo</legend>
             <Segmented
-              value={form.isHome ? "casa" : "fora"}
-              onChange={(v) => setForm({ ...form, isHome: v === "casa" })}
+              value={form.kind}
+              onChange={(kind) => setForm({ ...form, kind, competition: kind === "racha" ? "treino" : form.competition === "treino" ? "amistoso" : form.competition })}
               options={[
-                { value: "casa", label: "Em casa" },
-                { value: "fora", label: "Fora" },
+                { value: "racha", label: "Racha do clube" },
+                { value: "externo", label: "Contra adversário" },
               ]}
             />
+            <p className="text-xs text-muted-foreground">
+              {form.kind === "racha"
+                ? "Jogo entre os associados: você monta os dois times depois, jogador por jogador."
+                : `${club.name} contra um time de fora.`}
+            </p>
           </fieldset>
 
+          {form.kind === "racha" ? (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nome do Time A" htmlFor="side-a">
+                <Input
+                  id="side-a"
+                  placeholder="Time A"
+                  value={form.sideAName}
+                  maxLength={30}
+                  onChange={(e) => setForm({ ...form, sideAName: e.target.value })}
+                />
+              </Field>
+              <Field label="Nome do Time B" htmlFor="side-b">
+                <Input
+                  id="side-b"
+                  placeholder="Time B"
+                  value={form.sideBName}
+                  maxLength={30}
+                  onChange={(e) => setForm({ ...form, sideBName: e.target.value })}
+                />
+              </Field>
+            </div>
+          ) : (
+            <>
+              <Field label={`${club.name} x`} htmlFor="game-opponent">
+                <Input
+                  id="game-opponent"
+                  placeholder="Nome do adversário, ex.: União FC"
+                  value={form.opponentName}
+                  onChange={(e) => setForm({ ...form, opponentName: e.target.value })}
+                  required
+                />
+              </Field>
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium">Mando de campo</legend>
+                <Segmented
+                  value={form.isHome ? "casa" : "fora"}
+                  onChange={(v) => setForm({ ...form, isHome: v === "casa" })}
+                  options={[
+                    { value: "casa", label: "Em casa" },
+                    { value: "fora", label: "Fora" },
+                  ]}
+                />
+              </fieldset>
+            </>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Tipo">
+            <Field label="Competição">
               <Select value={form.competition} onValueChange={(v) => setForm({ ...form, competition: v })}>
                 <SelectTrigger>
                   <SelectValue />

@@ -9,7 +9,7 @@ type Serialized<T> = {
   [K in keyof T]: T[K] extends Date ? string : T[K] extends Date | null ? string | null : T[K];
 };
 
-export type PublicUser = Serialized<Omit<User, "passwordHash" | "googleId">> & {
+export type PublicUser = Serialized<Omit<User, "passwordHash" | "googleId" | "avatarData">> & {
   hasPassword: boolean;
   googleLinked: boolean;
 };
@@ -75,7 +75,19 @@ export type TeamRecord = {
   goalsAgainst: number;
 };
 
+export type LineupPlayer = {
+  userId: number;
+  name: string;
+  nickname: string | null;
+  avatarUrl: string | null;
+  side: "A" | "B";
+  goals: number;
+  assists: number;
+};
+
 export type GameDTO = Serialized<Game> & {
+  kind: "racha" | "externo";
+  lineup: LineupPlayer[];
   attendance: { confirmed: number; absent: number; mine: "confirmado" | "ausente" | null };
 };
 
@@ -159,4 +171,46 @@ export type OverviewDTO = {
   overdue: { memberCount: number; totalAmount: number } | null;
   topScorers: ScorerDTO[];
   notices: NoticeDTO[];
+};
+
+/** Linha do ranking do clube (contado pelas escalações dos jogos finalizados) */
+export type RankingEntry = {
+  memberId: number;
+  userId: number;
+  name: string;
+  nickname: string | null;
+  avatarUrl: string | null;
+  position: string | null;
+  shirtNumber: number | null;
+  goals: number;
+  assists: number;
+  /** Jogos finalizados em que foi escalado (+ jogos lançados à mão, em "Todas") */
+  games: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  yellowCards: number;
+  redCards: number;
+};
+
+export type RankingResponse = {
+  /** null = todas as temporadas */
+  season: number | null;
+  seasons: number[];
+  entries: RankingEntry[];
+};
+
+/** Jogo do qual o associado participou, do ponto de vista dele */
+export type PlayerGameDTO = {
+  gameId: number;
+  startsAt: string;
+  kind: "racha" | "externo";
+  /** "Time A x Time B" ou "Clube x Adversário" */
+  title: string;
+  side: "A" | "B";
+  myScore: number;
+  theirScore: number;
+  outcome: "V" | "E" | "D";
+  goals: number;
+  assists: number;
 };

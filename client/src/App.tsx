@@ -13,6 +13,7 @@ import HomePage from "@/pages/HomePage";
 import GamesPage from "@/pages/GamesPage";
 import SquadPage from "@/pages/SquadPage";
 import OverduePage from "@/pages/OverduePage";
+import RankingPage from "@/pages/RankingPage";
 import DuesPage from "@/pages/DuesPage";
 import ChatPage from "@/pages/ChatPage";
 import ClubPage from "@/pages/ClubPage";
@@ -59,6 +60,7 @@ function LoggedIn() {
               <Route path="/jogos" component={GamesPage} />
               <Route path="/elenco" component={SquadPage} />
               <Route path="/inadimplencia" component={OverduePage} />
+              <Route path="/ranking" component={RankingPage} />
               <Route path="/times">
                 <Redirect to="/elenco" />
               </Route>

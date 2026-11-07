@@ -11,6 +11,7 @@ import {
   registerSchema,
   updateProfileSchema,
   googleLoginSchema,
+  avatarSchema,
 } from "@shared/validation";
 import { verifyGoogleIdToken } from "../lib/google";
 import { currentUser, requireAuth, signToken, toPublicUser } from "../lib/auth";
@@ -112,6 +113,28 @@ authRouter.patch("/me", requireAuth, async (req, res) => {
   const user = currentUser(req);
   const data = nonEmpty(parse(updateProfileSchema, req.body));
   const [updated] = await db.update(users).set(data).where(eq(users.id, user.id)).returning();
+  res.json(toPublicUser(updated));
+});
+
+/** Foto de perfil: guardada no banco e servida em /api/avatars/:id (com cache) */
+authRouter.put("/me/avatar", requireAuth, async (req, res) => {
+  const user = currentUser(req);
+  const { image } = parse(avatarSchema, req.body);
+  const [updated] = await db
+    .update(users)
+    .set({ avatarData: image, avatarUrl: `/api/avatars/${user.id}?v=${Date.now().toString(36)}` })
+    .where(eq(users.id, user.id))
+    .returning();
+  res.json(toPublicUser(updated));
+});
+
+authRouter.delete("/me/avatar", requireAuth, async (req, res) => {
+  const user = currentUser(req);
+  const [updated] = await db
+    .update(users)
+    .set({ avatarData: null, avatarUrl: null })
+    .where(eq(users.id, user.id))
+    .returning();
   res.json(toPublicUser(updated));
 });
 

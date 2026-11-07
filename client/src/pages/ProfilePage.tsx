@@ -20,7 +20,7 @@ import {
 import { PageHeader, SectionTitle } from "@/components/PageHeader";
 import { Field } from "@/components/Field";
 import { TeamCrest } from "@/components/TeamCrest";
-import { UserAvatar } from "@/components/UserAvatar";
+import { AvatarPicker } from "@/components/AvatarPicker";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useClub } from "@/lib/club";
@@ -36,9 +36,9 @@ export default function ProfilePage() {
     <div>
       <PageHeader title="Perfil" />
 
-      <section className="flex items-center gap-4">
-        <UserAvatar name={user.name} url={user.avatarUrl} className="h-16 w-16 text-xl" />
-        <div className="min-w-0">
+      <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <AvatarPicker />
+        <div className="min-w-0 sm:text-right">
           <p className="truncate font-display text-2xl font-semibold">{user.name}</p>
           <p className="truncate text-sm text-muted-foreground">{user.email}</p>
           <p className="text-xs text-muted-foreground">No app desde {fmtDate(user.createdAt, "MMMM 'de' yyyy")}</p>
@@ -109,8 +109,8 @@ function MyClubs() {
 
 function ProfileForm({ user }: { user: PublicUser }) {
   const { setUser } = useAuth();
-  const [form, setForm] = useState({ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "" });
-  useEffect(() => setForm({ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "" }), [user]);
+  const [form, setForm] = useState({ name: user.name, phone: user.phone ?? "" });
+  useEffect(() => setForm({ name: user.name, phone: user.phone ?? "" }), [user]);
 
   const save = useMutation({
     mutationFn: () => api.patch<PublicUser>("/auth/me", form),
@@ -134,7 +134,7 @@ function ProfileForm({ user }: { user: PublicUser }) {
         <Field label="Nome" htmlFor="p-name">
           <Input id="p-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
         </Field>
-        <Field label="Celular / WhatsApp" htmlFor="p-phone" hint="Visível só para a diretoria dos seus clubes">
+        <Field label="Celular / WhatsApp" htmlFor="p-phone" hint="Visível só para a diretoria (usado para avisos e cobranças)">
           <Input
             id="p-phone"
             type="tel"
@@ -142,15 +142,6 @@ function ProfileForm({ user }: { user: PublicUser }) {
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
             placeholder="(75) 99999-9999"
-          />
-        </Field>
-        <Field label="Foto (endereço da imagem)" htmlFor="p-avatar" hint="Cole o link de uma foto sua">
-          <Input
-            id="p-avatar"
-            type="url"
-            value={form.avatarUrl}
-            onChange={(e) => setForm({ ...form, avatarUrl: e.target.value })}
-            placeholder="https://…"
           />
         </Field>
         <div className="flex justify-end">

@@ -11,6 +11,7 @@ import { GameRow } from "@/components/games/GameRow";
 import { GameFormDialog } from "@/components/games/GameFormDialog";
 import { ResultDialog } from "@/components/games/ResultDialog";
 import { CalendarSubscribe } from "@/components/games/CalendarSubscribe";
+import { LineupDialog } from "@/components/games/LineupDialog";
 import { api } from "@/lib/api";
 import { useActiveClub } from "@/lib/club";
 import { useClubMutation } from "@/lib/mutation";
@@ -24,6 +25,7 @@ export default function GamesPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<GameDTO | null>(null);
   const [resultFor, setResultFor] = useState<GameDTO | null>(null);
+  const [lineupFor, setLineupFor] = useState<GameDTO | null>(null);
   const [deleting, setDeleting] = useState<GameDTO | null>(null);
 
   const games = useQuery({
@@ -87,7 +89,7 @@ export default function GamesPage() {
           }
         />
       ) : (
-        <div className="divide-y rounded-lg border bg-card">
+        <div className="space-y-3">
           {games.data!.map((g) => (
             <GameRow
               key={g.id}
@@ -95,6 +97,7 @@ export default function GamesPage() {
               actions={
                 manage
                   ? {
+                      onLineup: () => setLineupFor(g),
                       onResult: () => setResultFor(g),
                       onEdit: () => {
                         setEditing(g);
@@ -116,6 +119,7 @@ export default function GamesPage() {
         <>
           <GameFormDialog open={formOpen} onOpenChange={setFormOpen} game={editing} />
           <ResultDialog game={resultFor} onOpenChange={(open) => !open && setResultFor(null)} />
+          <LineupDialog game={lineupFor} onOpenChange={(open) => !open && setLineupFor(null)} />
           {deleting ? (
             <DeleteGameDialog game={deleting} onCancel={() => setDeleting(null)} onConfirm={() => remove.mutate(deleting)} />
           ) : null}
@@ -135,13 +139,13 @@ function DeleteGameDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  const opponent = game.opponentName ?? "adversário";
+  const opponent = game.kind === "racha" ? "racha" : `jogo contra ${game.opponentName ?? "adversário"}`;
   return (
     <ConfirmAction
       open
       onOpenChange={(open) => !open && onCancel()}
       title="Excluir este jogo?"
-      description={`O jogo contra ${opponent} será apagado junto com as confirmações de presença. Para manter o histórico, prefira cancelar o jogo.`}
+      description={`O ${opponent} será apagado junto com as confirmações de presença. Para manter o histórico, prefira cancelar o jogo.`}
       confirmLabel="Excluir jogo"
       onConfirm={onConfirm}
     />

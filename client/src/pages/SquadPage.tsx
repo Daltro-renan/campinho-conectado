@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Pencil, Share2, Users } from "lucide-react";
+import { ChevronRight, Share2, Users } from "lucide-react";
 import { Link } from "wouter";
-import type { MemberDTO } from "@shared/api";
+import type { MemberDTO, RankingResponse } from "@shared/api";
 import { PLAYER_POSITIONS } from "@shared/validation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,17 +43,26 @@ export default function SquadPage() {
     return ORDER.filter((p) => map.has(p)).map((p) => ({ position: p, members: map.get(p)! }));
   }, [members]);
 
+  const season = String(new Date().getFullYear());
+  const ranking = useQuery({
+    queryKey: key("ranking", season),
+    queryFn: () => api.get<RankingResponse>(clubPath(`/ranking?temporada=${season}`)),
+  });
+  const statsOf = useMemo(
+    () => new Map((ranking.data?.entries ?? []).map((e) => [e.memberId, e])),
+    [ranking.data],
+  );
   const me = members?.find((m) => m.userId === user?.id);
-  const totals = (members ?? []).reduce(
-    (t, m) => ({ goals: t.goals + m.goals, assists: t.assists + m.assists }),
-    { goals: 0, assists: 0 },
+  const totals = (ranking.data?.entries ?? []).reduce(
+    (t, m) => ({ goals: t.goals + m.goals, wins: t.wins + m.wins }),
+    { goals: 0, wins: 0 },
   );
 
   return (
     <div>
       <PageHeader
         title="Elenco"
-        description="Todo associado do clube faz parte do time. Toque no jogador para ver a ficha."
+        description={`Todo associado do clube faz parte do time. Números da temporada ${new Date().getFullYear()}; toque no jogador para ver a ficha e os jogos.`}
       />
 
       <section className="mb-6 flex items-center gap-4 rounded-lg border bg-card p-4">
@@ -70,18 +79,18 @@ export default function SquadPage() {
           </div>
           <div>
             <dd className="scoreline text-3xl">{totals.goals}</dd>
-            <dt className="text-xs text-muted-foreground">Gols</dt>
+            <dt className="text-xs text-muted-foreground">Gols em {season}</dt>
           </div>
           <div>
-            <dd className="scoreline text-3xl">{totals.assists}</dd>
-            <dt className="text-xs text-muted-foreground">Assistências</dt>
+            <dd className="scoreline text-3xl">{ranking.data?.entries.filter((e) => e.games > 0).length ?? "–"}</dd>
+            <dt className="text-xs text-muted-foreground">Já jogaram</dt>
           </div>
         </dl>
       </section>
 
-      {me && !me.position ? (
+      {me && (!me.position || !me.avatarUrl) ? (
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/40 bg-primary/5 px-4 py-3">
-          <p className="text-sm">Complete sua ficha: posição e número da camisa.</p>
+          <p className="text-sm">Complete sua ficha: foto, posição e número da camisa.</p>
           <Button size="sm" onClick={() => setEditing(me)}>
             Completar ficha
           </Button>
@@ -115,17 +124,13 @@ export default function SquadPage() {
           </SectionTitle>
           <ul className="divide-y rounded-lg border bg-card">
             {g.members.map((m) => {
-              const canEdit = staff || m.userId === user?.id;
+              const st = statsOf.get(m.id);
               return (
                 <li key={m.id}>
                   <button
                     type="button"
-                    disabled={!canEdit}
                     onClick={() => setEditing(m)}
-                    className={cn(
-                      "flex w-full items-center gap-3 px-4 py-3 text-left",
-                      canEdit ? "hover:bg-accent/50" : "cursor-default",
-                    )}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-accent/50"
                   >
                     <span
                       className="grid h-10 w-10 shrink-0 place-items-center rounded-md font-display text-xl font-bold text-white"
@@ -155,11 +160,11 @@ export default function SquadPage() {
                       </span>
                     </span>
                     <span className="flex gap-4 text-center">
-                      <MiniStat label="Jogos" value={m.gamesPlayed} />
-                      <MiniStat label="Gols" value={m.goals} />
-                      <MiniStat label="Assist." value={m.assists} className="hidden sm:block" />
+                      <MiniStat label="Jogos" value={st?.games ?? 0} />
+                      <MiniStat label="Vit." value={st?.wins ?? 0} className="hidden sm:block" />
+                      <MiniStat label="Gols" value={st?.goals ?? 0} />
                     </span>
-                    {canEdit ? <Pencil className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden /> : null}
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                   </button>
                 </li>
               );

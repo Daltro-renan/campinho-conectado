@@ -24,7 +24,9 @@ export function Scoreboard({ game }: { game: GameDTO }) {
     >
       <div className="flex items-center justify-between px-5 pt-4 text-sm">
         <span className="font-semibold">
-          {game.competitionName || COMPETITION_LABELS[game.competition as keyof typeof COMPETITION_LABELS]}
+          {game.kind === "racha"
+            ? "Racha do clube"
+            : game.competitionName || COMPETITION_LABELS[game.competition as keyof typeof COMPETITION_LABELS]}
         </span>
         <span className="rounded-full bg-warn px-2.5 py-0.5 text-xs font-bold text-warn-foreground">
           {countdown}

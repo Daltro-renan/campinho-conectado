@@ -1,11 +1,11 @@
 /** Elenco: todo associado do clube é jogador do time. */
 import { Router } from "express";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
-import { memberships, users } from "@shared/schema";
+import { attendances, gamePlayers, games, memberships, users } from "@shared/schema";
 import { can } from "@shared/roles";
 import { playerAdminSchema, playerProfileSchema } from "@shared/validation";
-import type { ScorerDTO } from "@shared/api";
+import type { PlayerGameDTO, RankingEntry, ScorerDTO } from "@shared/api";
 import { currentUser } from "../lib/auth";
 import { clubCtx } from "../lib/club";
 import { forbidden, idParam, nonEmpty, notFound, parse } from "../lib/http";
@@ -62,3 +62,165 @@ export async function topScorers(clubId: number, limit: number): Promise<ScorerD
     .limit(limit);
   return rows;
 }
+
+const yearOf = (d: Date) =>
+  Number(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric" }).format(d));
+
+type Participation = {
+  gameId: number;
+  startsAt: Date;
+  kind: "racha" | "externo";
+  title: string;
+  userId: number;
+  side: "A" | "B";
+  myScore: number;
+  theirScore: number;
+  goals: number;
+  assists: number;
+};
+
+/**
+ * Participações nos jogos finalizados do clube (opcionalmente de uma temporada).
+ * Vem da escalação; jogo contra adversário sem escalação usa quem confirmou presença.
+ */
+async function participations(clubId: number, clubName: string, season: number | null): Promise<Participation[]> {
+  const finished = (
+    await db
+      .select()
+      .from(games)
+      .where(and(eq(games.clubId, clubId), eq(games.status, "finalizado")))
+  ).filter(
+    (g) => g.teamScore != null && g.opponentScore != null && (season == null || yearOf(g.startsAt) === season),
+  );
+  if (finished.length === 0) return [];
+  const ids = finished.map((g) => g.id);
+
+  const lineup = await db.select().from(gamePlayers).where(inArray(gamePlayers.gameId, ids));
+  const withLineup = new Set(lineup.map((l) => l.gameId));
+  const confirmed = await db
+    .select({ gameId: attendances.gameId, userId: attendances.userId })
+    .from(attendances)
+    .where(and(inArray(attendances.gameId, ids), eq(attendances.status, "confirmado")));
+
+  const out: Participation[] = [];
+  for (const g of finished) {
+    const kind = g.kind === "racha" ? "racha" : "externo";
+    const title =
+      kind === "racha"
+        ? `${g.sideAName ?? "Time A"} x ${g.sideBName ?? "Time B"}`
+        : `${clubName} x ${g.opponentName ?? "Adversário"}`;
+    const rows = withLineup.has(g.id)
+      ? lineup.filter((l) => l.gameId === g.id).map((l) => ({ userId: l.userId, side: l.side as "A" | "B", goals: l.goals, assists: l.assists }))
+      : kind === "externo"
+        ? confirmed.filter((c) => c.gameId === g.id).map((c) => ({ userId: c.userId, side: "A" as const, goals: 0, assists: 0 }))
+        : [];
+    for (const r of rows) {
+      const mine = r.side === "A" ? g.teamScore! : g.opponentScore!;
+      const theirs = r.side === "A" ? g.opponentScore! : g.teamScore!;
+      out.push({ gameId: g.id, startsAt: g.startsAt, kind, title, ...r, myScore: mine, theirScore: theirs });
+    }
+  }
+  return out;
+}
+
+const outcomeOf = (p: Participation): "V" | "E" | "D" =>
+  p.myScore > p.theirScore ? "V" : p.myScore === p.theirScore ? "E" : "D";
+
+function seasonParam(value: unknown): number | null {
+  if (value === "todas") return null;
+  const n = Number(value);
+  return Number.isInteger(n) && n > 2000 && n < 2200 ? n : yearOf(new Date());
+}
+
+/**
+ * Ranking do clube por temporada (?temporada=2026 ou ?temporada=todas).
+ * Jogos, vitórias, gols e assistências saem das escalações dos jogos finalizados.
+ * Em "todas", somam-se também os números lançados à mão na ficha (ex.: antes do app).
+ */
+rosterRouter.get("/ranking", async (req, res) => {
+  const { club } = clubCtx(req);
+  const season = seasonParam(req.query.temporada);
+
+  const members = await db
+    .select({
+      memberId: memberships.id,
+      userId: memberships.userId,
+      name: users.name,
+      nickname: memberships.nickname,
+      avatarUrl: users.avatarUrl,
+      position: memberships.position,
+      shirtNumber: memberships.shirtNumber,
+      manualGoals: memberships.goals,
+      manualAssists: memberships.assists,
+      manualGames: memberships.gamesPlayed,
+      yellowCards: memberships.yellowCards,
+      redCards: memberships.redCards,
+    })
+    .from(memberships)
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .where(eq(memberships.clubId, club.id));
+
+  const parts = await participations(club.id, club.name, season);
+  const stats = new Map<number, { games: number; wins: number; draws: number; losses: number; goals: number; assists: number }>();
+  for (const p of parts) {
+    const s = stats.get(p.userId) ?? { games: 0, wins: 0, draws: 0, losses: 0, goals: 0, assists: 0 };
+    s.games += 1;
+    const o = outcomeOf(p);
+    if (o === "V") s.wins += 1;
+    else if (o === "E") s.draws += 1;
+    else s.losses += 1;
+    s.goals += p.goals;
+    s.assists += p.assists;
+    stats.set(p.userId, s);
+  }
+
+  const all = season == null;
+  const ranking: RankingEntry[] = members.map(({ manualGoals, manualAssists, manualGames, ...m }) => {
+    const s = stats.get(m.userId) ?? { games: 0, wins: 0, draws: 0, losses: 0, goals: 0, assists: 0 };
+    return {
+      ...m,
+      games: s.games + (all ? manualGames : 0),
+      wins: s.wins,
+      draws: s.draws,
+      losses: s.losses,
+      goals: s.goals + (all ? manualGoals : 0),
+      assists: s.assists + (all ? manualAssists : 0),
+    };
+  });
+
+  // Temporadas com jogos, para o seletor
+  const years = await db
+    .select({ startsAt: games.startsAt })
+    .from(games)
+    .where(and(eq(games.clubId, club.id), eq(games.status, "finalizado")));
+  const seasons = [...new Set([yearOf(new Date()), ...years.map((y) => yearOf(y.startsAt))])].sort((a, b) => b - a);
+
+  res.json({ season, seasons, entries: ranking });
+});
+
+/** Jogos de que um associado participou (na temporada), do ponto de vista dele */
+rosterRouter.get("/members/:memberId/games", async (req, res) => {
+  const { club } = clubCtx(req);
+  const [member] = await db
+    .select({ userId: memberships.userId })
+    .from(memberships)
+    .where(and(eq(memberships.id, idParam(req.params.memberId, "Associado")), eq(memberships.clubId, club.id)));
+  if (!member) throw notFound("Associado não encontrado");
+  const season = seasonParam(req.query.temporada);
+  const list: PlayerGameDTO[] = (await participations(club.id, club.name, season))
+    .filter((p) => p.userId === member.userId)
+    .sort((a, b) => b.startsAt.getTime() - a.startsAt.getTime())
+    .map((p) => ({
+      gameId: p.gameId,
+      startsAt: p.startsAt.toISOString(),
+      kind: p.kind,
+      title: p.title,
+      side: p.side,
+      myScore: p.myScore,
+      theirScore: p.theirScore,
+      outcome: outcomeOf(p),
+      goals: p.goals,
+      assists: p.assists,
+    }));
+  res.json(list);
+});

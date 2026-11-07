@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Scoreboard } from "@/components/games/Scoreboard";
 import { GameRow } from "@/components/games/GameRow";
 import { StatusPill } from "@/components/StatusPill";
+import { UserAvatar } from "@/components/UserAvatar";
 import { SectionTitle } from "@/components/PageHeader";
 import { LoadingRows } from "@/components/EmptyState";
 import { api } from "@/lib/api";
@@ -123,9 +124,7 @@ export default function HomePage() {
               >
                 Último resultado
               </SectionTitle>
-              <div className="rounded-lg border bg-card">
-                <GameRow game={data.lastGame} />
-              </div>
+              <GameRow game={data.lastGame} />
             </>
           ) : null}
 
@@ -154,11 +153,20 @@ export default function HomePage() {
 
           {data.topScorers.length > 0 ? (
             <>
-              <SectionTitle>Artilharia</SectionTitle>
+              <SectionTitle
+                action={
+                  <Link href="/ranking" className="text-sm font-medium text-primary hover:underline">
+                    Ver ranking
+                  </Link>
+                }
+              >
+                Artilharia
+              </SectionTitle>
               <ol className="divide-y rounded-lg border bg-card">
                 {data.topScorers.map((p, i) => (
                   <li key={p.id} className="flex items-center gap-4 px-4 py-3">
                     <span className="scoreline w-5 text-center text-xl text-muted-foreground">{i + 1}</span>
+                    <UserAvatar name={p.name} url={p.avatarUrl} className="h-8 w-8" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium">{p.nickname || p.name}</span>
                       <span className="block truncate text-xs text-muted-foreground">

@@ -46,6 +46,14 @@ export const googleLoginSchema = z.object({
   idToken: z.string().min(20, "Login com Google inválido"),
 });
 
+/** Foto de perfil enviada pelo app, já reduzida para 256×256 */
+export const avatarSchema = z.object({
+  image: z
+    .string()
+    .max(300_000, "Foto muito grande")
+    .regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/, "Imagem inválida"),
+});
+
 export const changePasswordSchema = z.object({
   /** Opcional para contas criadas com o Google, que ainda não têm senha */
   currentPassword: z.string().optional(),
@@ -158,8 +166,13 @@ export const COMPETITION_LABELS: Record<(typeof COMPETITIONS)[number], string> =
 };
 export const GAME_STATUSES = ["agendado", "finalizado", "cancelado"] as const;
 
+export const GAME_KINDS = ["racha", "externo"] as const;
+
 const gameBase = z.object({
-  opponentName: z.string().trim().min(2, "Informe o adversário").max(80),
+  kind: z.enum(GAME_KINDS).default("racha"),
+  opponentName: optionalText(80),
+  sideAName: optionalText(30),
+  sideBName: optionalText(30),
   isHome: z.boolean().default(true),
   competition: z.enum(COMPETITIONS).default("amistoso"),
   competitionName: optionalText(80),
@@ -168,7 +181,32 @@ const gameBase = z.object({
   notes: optionalText(500),
 });
 
-export const gameSchema = gameBase;
+export const gameSchema = gameBase.refine((g) => g.kind === "racha" || (g.opponentName?.length ?? 0) >= 2, {
+  message: "Informe o adversário",
+  path: ["opponentName"],
+});
+
+export const lineupSchema = z.object({
+  players: z
+    .array(z.object({ userId: z.coerce.number().int().positive(), side: z.enum(["A", "B"]) }))
+    .max(200),
+});
+
+/** Placar + gols e assistências de cada jogador escalado */
+export const resultSchema = z.object({
+  teamScore: z.coerce.number().int().min(0).max(99),
+  opponentScore: z.coerce.number().int().min(0).max(99),
+  players: z
+    .array(
+      z.object({
+        userId: z.coerce.number().int().positive(),
+        goals: z.coerce.number().int().min(0).max(50),
+        assists: z.coerce.number().int().min(0).max(50),
+      }),
+    )
+    .max(200)
+    .default([]),
+});
 
 export const updateGameSchema = gameBase.partial().extend({
   status: z.enum(GAME_STATUSES).optional(),

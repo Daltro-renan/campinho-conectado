@@ -5,45 +5,8 @@ import { CREST_SHAPES, CREST_SHAPE_LABELS, type CrestShape } from "@shared/valid
 import { Button } from "@/components/ui/button";
 import { TeamCrest } from "@/components/TeamCrest";
 import { cn } from "@/lib/utils";
+import { squareImage } from "@/lib/image";
 
-const SIZE = 320;
-
-/** Reduz a imagem para 320×320 (recorte central), para guardar leve no banco */
-async function prepareLogo(file: File): Promise<string> {
-  if (!file.type.startsWith("image/")) throw new Error("Escolha um arquivo de imagem (PNG ou JPG).");
-  if (file.size > 15 * 1024 * 1024) throw new Error("Imagem muito grande. Use uma de até 15 MB.");
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const el = new Image();
-      el.onload = () => resolve(el);
-      el.onerror = () => reject(new Error("Não foi possível ler esta imagem."));
-      el.src = url;
-    });
-    const side = Math.min(img.naturalWidth, img.naturalHeight);
-    const canvas = document.createElement("canvas");
-    canvas.width = SIZE;
-    canvas.height = SIZE;
-    const ctx = canvas.getContext("2d")!;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(
-      img,
-      (img.naturalWidth - side) / 2,
-      (img.naturalHeight - side) / 2,
-      side,
-      side,
-      0,
-      0,
-      SIZE,
-      SIZE,
-    );
-    // PNG mantém o fundo transparente; JPG fica mais leve para fotos
-    const png = canvas.toDataURL("image/png");
-    return png.length < 300_000 ? png : canvas.toDataURL("image/jpeg", 0.85);
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
 
 /** Escolha do logo da associação e do formato do escudo, com prévia */
 export function CrestEditor({
@@ -68,7 +31,7 @@ export function CrestEditor({
     if (!file) return;
     setBusy(true);
     try {
-      onChange({ logoUrl: await prepareLogo(file) });
+      onChange({ logoUrl: await squareImage(file, { size: 320 }) });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {

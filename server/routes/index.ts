@@ -10,6 +10,7 @@ import { duesRouter } from "./dues";
 import { chatRouter } from "./chat";
 import { overviewRouter } from "./overview";
 import { calendarRouter } from "./calendar";
+import { avatarsRouter } from "./avatars";
 import { paymentsRouter, webhookRouter } from "./payments";
 import { env } from "../env";
 
@@ -29,6 +30,7 @@ export function apiRouter() {
   // Rotas públicas: link da agenda (token secreto) e aviso do Mercado Pago
   api.use(calendarRouter);
   api.use(webhookRouter);
+  api.use(avatarsRouter);
 
   api.use("/clubs", requireAuth);
   api.use("/clubs", clubsRouter);

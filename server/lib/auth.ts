@@ -22,7 +22,7 @@ export function signToken(userId: number): string {
 }
 
 export function toPublicUser(user: User): PublicUser {
-  const { passwordHash, googleId, ...rest } = user;
+  const { passwordHash, googleId, avatarData: _avatar, ...rest } = user;
   return {
     ...rest,
     createdAt: user.createdAt.toISOString(),
