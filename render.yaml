@@ -6,6 +6,7 @@ services:
     name: campinho-conectado
     runtime: node
     plan: free
+    region: virginia
     buildCommand: npm install && npm run build && npm run db:push -- --force
     startCommand: npm start
     healthCheckPath: /api/health
