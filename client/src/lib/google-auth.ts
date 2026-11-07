@@ -3,11 +3,45 @@
  * (plugin @capgo/capacitor-social-login). O ID do cliente vem do servidor (/api/config),
  * então não é preciso gerar um app novo para trocar de configuração.
  */
+import { Capacitor } from "@capacitor/core";
 import { SocialLogin } from "@capgo/capacitor-social-login";
 import type { AppConfig } from "@shared/api";
 import { api } from "./api";
 
 let ready: Promise<boolean> | null = null;
+
+/** No app Android usamos o login nativo; no site, o botão oficial do Google (modo redirect) */
+export const isNativeApp = Capacitor.isNativePlatform();
+
+type GsiButtonOptions = Record<string, string | number>;
+type Gsi = {
+  accounts: {
+    id: {
+      initialize(o: { client_id: string; ux_mode: "redirect"; login_uri: string; auto_select?: boolean }): void;
+      renderButton(el: HTMLElement, o: GsiButtonOptions): void;
+    };
+  };
+};
+
+let gsiScript: Promise<Gsi> | null = null;
+
+/** Carrega o script do "Fazer login com o Google" (Google Identity Services) */
+export function loadGsi(): Promise<Gsi> {
+  gsiScript ??= new Promise<Gsi>((resolve, reject) => {
+    const w = window as unknown as { google?: Gsi };
+    if (w.google?.accounts?.id) return resolve(w.google);
+    const el = document.createElement("script");
+    el.src = "https://accounts.google.com/gsi/client";
+    el.async = true;
+    el.onload = () => (w.google ? resolve(w.google) : reject(new Error("Google indisponível")));
+    el.onerror = () => {
+      gsiScript = null;
+      reject(new Error("Não foi possível carregar o login do Google. Verifique a internet."));
+    };
+    document.head.appendChild(el);
+  });
+  return gsiScript;
+}
 
 async function initialize(clientId: string): Promise<boolean> {
   await SocialLogin.initialize({ google: { webClientId: clientId, mode: "online" } });

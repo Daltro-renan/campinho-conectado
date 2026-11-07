@@ -2,6 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AuthResponse, PublicUser } from "@shared/api";
+import { toast } from "sonner";
 import { api, setUnauthorizedHandler, tokenStore } from "./api";
 
 type AuthContextValue = {
@@ -14,9 +15,26 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/**
+ * Volta do "Entrar com Google" no site: o servidor manda #token=... ou #erro=...
+ * Guardamos a sessão e limpamos a URL na hora.
+ */
+function consumeLoginRedirect() {
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  const token = hash.get("token");
+  const error = hash.get("erro");
+  if (!token && !error) return;
+  window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  if (token) tokenStore.set(token);
+  if (error) setTimeout(() => toast.error(error), 300);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const [token, setToken] = useState(() => tokenStore.get());
+  const [token, setToken] = useState(() => {
+    consumeLoginRedirect();
+    return tokenStore.get();
+  });
 
   const { data: user, isLoading } = useQuery({
     queryKey: ["me", token],

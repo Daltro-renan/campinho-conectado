@@ -1,5 +1,5 @@
 /** Conta do usuário: cadastro, login, perfil, senha e exclusão. */
-import { Router } from "express";
+import express, { Router } from "express";
 import bcrypt from "bcryptjs";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "../db";
@@ -53,8 +53,7 @@ authRouter.post("/login", limiter, async (req, res) => {
  * Entrar com Google. Se já existe conta com o mesmo e-mail, ela é vinculada ao Google
  * (o Google garante que o e-mail é do usuário). Senão, cria a conta.
  */
-authRouter.post("/google", limiter, async (req, res) => {
-  const { idToken } = parse(googleLoginSchema, req.body);
+async function findOrCreateGoogleUser(idToken: string) {
   const profile = await verifyGoogleIdToken(idToken);
 
   let [user] = await db.select().from(users).where(eq(users.googleId, profile.sub));
@@ -73,7 +72,36 @@ authRouter.post("/google", limiter, async (req, res) => {
         .returning();
     }
   }
+  return user;
+}
+
+/** App Android (e chamadas diretas): recebe o ID token do Google e devolve a sessão */
+authRouter.post("/google", limiter, async (req, res) => {
+  const { idToken } = parse(googleLoginSchema, req.body);
+  const user = await findOrCreateGoogleUser(idToken);
   res.json({ token: signToken(user.id), user: toPublicUser(user) });
+});
+
+/**
+ * Site: botão oficial do Google em modo "redirect". O Google envia o formulário
+ * para cá; validamos e voltamos ao app com a sessão no fragmento (#) da URL,
+ * que não vai para servidores nem para o histórico de rede.
+ * Funciona em qualquer navegador, inclusive no app instalado na tela do iPhone.
+ */
+authRouter.post("/google/callback", express.urlencoded({ extended: false, limit: "20kb" }), limiter, async (req, res) => {
+  const body = req.body as { credential?: string; g_csrf_token?: string };
+  // Proteção do Google contra CSRF: o mesmo valor vem no cookie e no formulário
+  const cookie = /(?:^|;\s*)g_csrf_token=([^;]+)/.exec(req.headers.cookie ?? "")?.[1];
+  if (!body.credential || !body.g_csrf_token || cookie !== body.g_csrf_token) {
+    return res.redirect(303, "/#erro=" + encodeURIComponent("Não foi possível entrar com o Google. Tente novamente."));
+  }
+  try {
+    const user = await findOrCreateGoogleUser(body.credential);
+    res.redirect(303, `/#token=${encodeURIComponent(signToken(user.id))}`);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Não foi possível entrar com o Google.";
+    res.redirect(303, "/#erro=" + encodeURIComponent(msg));
+  }
 });
 
 authRouter.get("/me", requireAuth, (req, res) => {

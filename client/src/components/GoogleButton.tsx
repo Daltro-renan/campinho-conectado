@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AuthResponse } from "@shared/api";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { fetchConfig, googleIdToken, GoogleCancelled, prepareGoogle } from "@/lib/google-auth";
+import { fetchConfig, googleIdToken, GoogleCancelled, isNativeApp, loadGsi, prepareGoogle } from "@/lib/google-auth";
 
 /** Logotipo oficial do Google ("G" colorido), exigido nas diretrizes do botão */
 function GoogleLogo() {
@@ -19,17 +19,75 @@ function GoogleLogo() {
   );
 }
 
+function Divider() {
+  return (
+    <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+      <span className="h-px flex-1 bg-border" />
+      ou com e-mail
+      <span className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
 export function GoogleButton() {
-  const { signIn } = useAuth();
-  const [busy, setBusy] = useState(false);
   const { data: config } = useQuery({ queryKey: ["config"], queryFn: fetchConfig, staleTime: Infinity });
   const clientId = config?.googleClientId;
+  if (!clientId) return null;
+  return isNativeApp ? <NativeGoogleButton clientId={clientId} /> : <WebGoogleButton clientId={clientId} />;
+}
+
+/**
+ * Site: botão oficial do Google. Ao escolher a conta, o Google volta para o nosso
+ * servidor (/api/auth/google/callback), que devolve a sessão para o app.
+ */
+function WebGoogleButton({ clientId }: { clientId: string }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (clientId) prepareGoogle(clientId).catch(() => undefined);
+    let cancelled = false;
+    loadGsi()
+      .then((google) => {
+        if (cancelled || !box.current) return;
+        google.accounts.id.initialize({
+          client_id: clientId,
+          ux_mode: "redirect",
+          login_uri: `${window.location.origin}/api/auth/google/callback`,
+        });
+        google.accounts.id.renderButton(box.current, {
+          type: "standard",
+          theme: "outline",
+          size: "large",
+          text: "continue_with",
+          shape: "rectangular",
+          logo_alignment: "center",
+          locale: "pt-BR",
+          width: Math.min(box.current.clientWidth || 320, 400),
+        });
+      })
+      .catch(() => setFailed(true));
+    return () => {
+      cancelled = true;
+    };
   }, [clientId]);
 
-  if (!clientId) return null;
+  if (failed) return null;
+  return (
+    <>
+      <div ref={box} className="flex min-h-[44px] w-full justify-center" />
+      <Divider />
+    </>
+  );
+}
+
+/** App Android: login nativo do Google (plugin) */
+function NativeGoogleButton({ clientId }: { clientId: string }) {
+  const { signIn } = useAuth();
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    prepareGoogle(clientId).catch(() => undefined);
+  }, [clientId]);
 
   const login = async () => {
     setBusy(true);
@@ -51,11 +109,7 @@ export function GoogleButton() {
         <GoogleLogo />
         {busy ? "Conectando…" : "Entrar com Google"}
       </Button>
-      <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
-        <span className="h-px flex-1 bg-border" />
-        ou com e-mail
-        <span className="h-px flex-1 bg-border" />
-      </div>
+      <Divider />
     </>
   );
 }
