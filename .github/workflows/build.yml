@@ -44,7 +44,11 @@ jobs:
         env:
           VITE_API_URL: ${{ vars.API_URL || 'https://campinho-conectado.onrender.com' }}
       - run: npx cap add android
+        env:
+          CAP_SERVER_URL: ${{ vars.API_URL || 'https://campinho-conectado.onrender.com' }}
       - run: npx cap sync android
+        env:
+          CAP_SERVER_URL: ${{ vars.API_URL || 'https://campinho-conectado.onrender.com' }}
       # O plugin de login Google puxa androidx.browser 1.9, que exige Android 36 / AGP 8.9.
       # O Capacitor 7 usa Android 35 / AGP 8.7, então fixamos a versão compatível.
       - name: Compatibilizar dependências Android
