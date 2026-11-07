@@ -247,6 +247,24 @@ export const attendanceSchema = z.object({
 
 // ---------- Mensalidades ----------
 
+// ---------- Caixa ----------
+
+export const CASH_TYPES = ["entrada", "saida"] as const;
+export const CASH_CATEGORIES = {
+  entrada: ["Patrocínio", "Doação", "Evento ou rifa", "Venda", "Inscrição", "Outros"],
+  saida: ["Aluguel de campo", "Arbitragem", "Material esportivo", "Uniforme", "Taxa de campeonato", "Confraternização", "Manutenção", "Outros"],
+} as const;
+
+export const cashEntrySchema = z
+  .object({
+    type: z.enum(CASH_TYPES),
+    amount: z.coerce.number().int().min(1, "Informe o valor").max(100_000_000),
+    category: z.string().trim().min(1, "Escolha a categoria").max(40),
+    description: z.string().trim().min(2, "Descreva o lançamento").max(140),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida"),
+  });
+export const cashOpeningSchema = z.object({ amount: z.coerce.number().int().min(-100_000_000).max(100_000_000) });
+
 export const PAYMENT_METHODS = ["pix", "dinheiro", "cartao", "transferencia"] as const;
 export const PAYMENT_METHOD_LABELS: Record<(typeof PAYMENT_METHODS)[number], string> = {
   pix: "PIX",

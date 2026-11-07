@@ -12,6 +12,7 @@ import { overviewRouter } from "./overview";
 import { calendarRouter } from "./calendar";
 import { avatarsRouter } from "./avatars";
 import { paymentsRouter, webhookRouter } from "./payments";
+import { cashRouter } from "./cash";
 import { env } from "../env";
 
 export function apiRouter() {
@@ -45,6 +46,7 @@ export function apiRouter() {
   club.use(chatRouter);
   club.use(overviewRouter);
   club.use(paymentsRouter);
+  club.use(cashRouter);
   api.use("/clubs/:clubId", club);
 
   api.use(() => {

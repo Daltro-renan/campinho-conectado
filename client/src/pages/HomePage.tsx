@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CalendarPlus, ChevronRight, Megaphone, Pin, ScrollText } from "lucide-react";
-import type { OverviewDTO } from "@shared/api";
+import { AlertTriangle, CalendarPlus, ChevronRight, Landmark, Megaphone, Pin, ScrollText } from "lucide-react";
+import type { CashReport, OverviewDTO } from "@shared/api";
 import { Button } from "@/components/ui/button";
 import { Scoreboard } from "@/components/games/Scoreboard";
 import { GameRow } from "@/components/games/GameRow";
@@ -21,6 +21,11 @@ export default function HomePage() {
   const { data, isLoading } = useQuery({
     queryKey: key("overview"),
     queryFn: () => api.get<OverviewDTO>(clubPath("/overview")),
+  });
+
+  const cash = useQuery({
+    queryKey: key("cash", "resumo"),
+    queryFn: () => api.get<CashReport>(clubPath("/cash")),
   });
 
   const first = user?.name.split(" ")[0] ?? "";
@@ -136,8 +141,27 @@ export default function HomePage() {
           ) : null}
 
           <Link
-            href="/regras"
+            href="/caixa"
             className="mt-4 flex items-center gap-3 rounded-xl border bg-card px-4 py-3 hover:border-gold/60"
+          >
+            <Landmark className="h-5 w-5 shrink-0 text-gold" aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium">Caixa do clube</span>
+              {cash.data ? (
+                <span className="block truncate text-xs text-muted-foreground">
+                  Este mês: +{money(cash.data.monthIn)} em entradas, −{money(cash.data.monthOut)} em despesas
+                </span>
+              ) : null}
+            </span>
+            <span className={`scoreline text-xl ${cash.data && cash.data.balance < 0 ? "text-danger" : ""}`}>
+              {cash.data ? money(cash.data.balance) : "–"}
+            </span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden />
+          </Link>
+
+          <Link
+            href="/regras"
+            className="mt-3 flex items-center gap-3 rounded-xl border bg-card px-4 py-3 hover:border-gold/60"
           >
             <ScrollText className="h-5 w-5 shrink-0 text-gold" aria-hidden />
             <span className="flex-1 text-sm font-medium">Regras da associação</span>

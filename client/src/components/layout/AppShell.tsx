@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import {
   AlertTriangle,
   CalendarDays,
+  Landmark,
   Home,
   MessageCircle,
   ScrollText,
@@ -29,6 +30,7 @@ const NAV: NavItem[] = [
   { href: "/elenco", label: "Elenco", icon: Shirt, mobile: true },
   { href: "/ranking", label: "Ranking", icon: Trophy, mobile: true },
   { href: "/mensalidades", label: "Mensalidades", icon: Wallet },
+  { href: "/caixa", label: "Caixa", icon: Landmark },
   { href: "/inadimplencia", label: "Inadimplência", icon: AlertTriangle, finance: true },
   { href: "/chat", label: "Chat", icon: MessageCircle, mobile: true },
   { href: "/regras", label: "Regras", icon: ScrollText },

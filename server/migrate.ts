@@ -100,6 +100,21 @@ const STEPS: string[] = [
   `CREATE INDEX IF NOT EXISTS "game_matches_game_idx" ON "game_matches" ("game_id")`,
   // Cobrança excluída vira "cancelada" (a geração automática não a recria)
   `ALTER TABLE "dues" ADD COLUMN IF NOT EXISTS "canceled_at" timestamptz`,
+  // Caixa do clube
+  `ALTER TABLE "clubs" ADD COLUMN IF NOT EXISTS "cash_opening" integer NOT NULL DEFAULT 0`,
+  `CREATE TABLE IF NOT EXISTS "cash_entries" (
+    "id" serial PRIMARY KEY,
+    "club_id" integer NOT NULL REFERENCES "clubs"("id") ON DELETE CASCADE,
+    "type" text NOT NULL,
+    "amount" integer NOT NULL,
+    "category" text NOT NULL,
+    "description" text NOT NULL,
+    "date" date NOT NULL,
+    "created_by" integer REFERENCES "users"("id") ON DELETE SET NULL,
+    "created_at" timestamptz NOT NULL DEFAULT now(),
+    "updated_at" timestamptz
+  )`,
+  `CREATE INDEX IF NOT EXISTS "cash_entries_club_date_idx" ON "cash_entries" ("club_id", "date")`,
 ];
 
 export async function migrate() {

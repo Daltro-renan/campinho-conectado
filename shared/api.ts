@@ -235,3 +235,32 @@ export type PlayerGameDTO = {
   goals: number;
   assists: number;
 };
+
+// ---------- Caixa ----------
+
+/** Movimento do caixa. Mensalidades pagas aparecem agrupadas por mês (source "mensalidades"). */
+export type CashEntryDTO = {
+  id: number | null;
+  source: "lancamento" | "mensalidades";
+  type: "entrada" | "saida";
+  amount: number;
+  category: string;
+  description: string;
+  date: string;
+  createdByName: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+export type CashReport = {
+  month: string;
+  /** Saldo atual (todos os meses, com o saldo inicial) */
+  balance: number;
+  opening: number;
+  monthIn: number;
+  monthOut: number;
+  /** Saldo no fim do mês escolhido */
+  monthEndBalance: number;
+  byCategory: { type: "entrada" | "saida"; category: string; amount: number }[];
+  entries: CashEntryDTO[];
+};

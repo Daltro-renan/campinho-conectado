@@ -53,6 +53,8 @@ export const clubs = pgTable("clubs", {
   pixKey: text("pix_key"),
   /** Regras/estatuto da associação (texto livre, visível a todos os associados) */
   rules: text("rules"),
+  /** Saldo do caixa antes de começar a usar o app, em centavos */
+  cashOpening: integer("cash_opening").notNull().default(0),
   inviteCode: text("invite_code").notNull().unique(),
   /** Token secreto do link de agenda (.ics) do clube */
   calendarToken: text("calendar_token").unique(),
@@ -138,6 +140,30 @@ export const gamePlayers = pgTable(
     assists: integer("assists").notNull().default(0),
   },
   (t) => [uniqueIndex("game_players_game_user_idx").on(t.gameId, t.userId), index("game_players_user_idx").on(t.userId)],
+);
+
+/**
+ * Caixa do clube: entradas e saídas lançadas pela diretoria.
+ * As mensalidades pagas entram no caixa sozinhas (vêm da tabela dues).
+ */
+export const cashEntries = pgTable(
+  "cash_entries",
+  {
+    id: serial("id").primaryKey(),
+    clubId: integer("club_id").notNull().references(() => clubs.id, { onDelete: "cascade" }),
+    /** "entrada" ou "saida" */
+    type: text("type").notNull(),
+    /** Valor em centavos, sempre positivo */
+    amount: integer("amount").notNull(),
+    category: text("category").notNull(),
+    description: text("description").notNull(),
+    /** Data do movimento (AAAA-MM-DD) */
+    date: date("date").notNull(),
+    createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }),
+  },
+  (t) => [index("cash_entries_club_date_idx").on(t.clubId, t.date)],
 );
 
 /** Partidas de um torneio (time da casa x visitante, pelas letras dos times) */
