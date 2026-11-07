@@ -156,6 +156,11 @@ export default function AuthPage() {
               {mode === "entrar" ? "Criar conta" : "Entrar"}
             </button>
           </p>
+          <p className="mt-8 text-center text-xs text-muted-foreground">
+            Ao continuar, você concorda com os{" "}
+            <a href="/termos.html" className="underline underline-offset-2">Termos de Uso</a> e a{" "}
+            <a href="/privacidade.html" className="underline underline-offset-2">Política de Privacidade</a>.
+          </p>
         </div>
       </section>
     </div>
